@@ -15,23 +15,18 @@
         </nav>
         
         <div class="p-4">
-            <h3 class="text-sm font-semibold text-dark-400 mb-3">Teilnehmer</h3>
-            <div class="space-y-2">
-                {% for participant in conversation.participants|safe|list %}
-                <div class="flex items-center px-3 py-2 bg-dark-50 rounded-lg">
-                    <div class="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></div>
-                    <span class="text-dark-600 text-sm">{{ participant }}</span>
-                </div>
-                {% endfor %}
+            <h3 class="text-sm font-semibold text-purple-400 mb-3 uppercase tracking-wider">Teilnehmer</h3>
+            <div class="space-y-2" id="participantsList">
+                <!-- Will be populated by JavaScript -->
             </div>
         </div>
     </div>
     
-    <div class="flex-1 flex flex-col h-screen">
-        <div class="bg-dark-100 border-b border-dark-200 px-6 py-4">
+    <div class="flex-1 flex flex-col h-screen bg-gradient-to-br from-dark-50 via-dark-100 to-purple-950/10">
+        <div class="bg-dark-100/90 backdrop-blur-sm border-b border-purple-500/20 px-6 py-4">
             <div class="flex justify-between items-start">
                 <div>
-                    <h2 class="text-xl font-bold text-dark-700">{{ conversation.title }}</h2>
+                    <h2 class="text-xl font-bold bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent">{{ conversation.title }}</h2>
                     {% if conversation.topic %}
                     <p class="text-dark-500 text-sm mt-1">Thema: {{ conversation.topic }}</p>
                     {% endif %}
@@ -79,18 +74,8 @@
         
         <div id="messagesContainer" class="flex-1 overflow-y-auto p-6 space-y-4">
             {% for message in messages %}
-            <div class="fade-in {{ 'ml-auto' if message.role == 'user' else '' }} max-w-3xl">
-                <div class="glass-effect rounded-lg p-4 {{ 'bg-purple-900 bg-opacity-30' if message.role == 'user' else '' }}">
-                    <div class="flex items-center mb-2">
-                        <span class="font-semibold text-dark-600 text-sm">
-                            {{ message.model }}
-                        </span>
-                        <span class="ml-2 text-dark-400 text-xs">
-                            {{ message.created_at }}
-                        </span>
-                    </div>
-                    <div class="text-dark-700 whitespace-pre-wrap">{{ message.content }}</div>
-                </div>
+            <div class="fade-in {{ 'ml-auto' if message.role == 'user' else '' }} max-w-4xl mb-4 rendered-message" data-model="{{ message.model }}">
+                <!-- Message will be rendered by JavaScript -->
             </div>
             {% endfor %}
             
@@ -103,18 +88,18 @@
             </div>
         </div>
         
-        <div class="border-t border-dark-200 p-4">
+        <div class="border-t border-purple-500/20 bg-dark-100/50 backdrop-blur-sm p-4">
             <form id="messageForm" class="flex space-x-4">
-                <select id="senderModel" class="px-4 py-2 bg-dark-100 border border-dark-200 rounded-lg text-dark-700 focus:outline-none focus:ring-2 focus:ring-purple-600">
+                <select id="senderModel" class="px-4 py-2 bg-dark-50 border border-purple-500/30 rounded-lg text-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all">
                     <option value="">Wähle Absender...</option>
                 </select>
-                
-                <input type="text" id="messageInput" 
-                    class="flex-1 px-4 py-2 bg-dark-100 border border-dark-200 rounded-lg text-dark-700 placeholder-dark-400 focus:outline-none focus:ring-2 focus:ring-purple-600"
+
+                <input type="text" id="messageInput"
+                    class="flex-1 px-4 py-2 bg-dark-50 border border-purple-500/30 rounded-lg text-dark-700 placeholder-dark-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
                     placeholder="Nachricht eingeben...">
-                
+
                 <button type="submit"
-                    class="px-6 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg font-medium hover:from-purple-700 hover:to-indigo-700 transition-all duration-200">
+                    class="px-6 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg font-medium hover:from-purple-700 hover:to-indigo-700 transition-all shadow-lg shadow-purple-500/20 hover:shadow-purple-500/40">
                     Senden
                 </button>
             </form>
@@ -122,6 +107,7 @@
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script>
 const conversationId = {{ conversation.id }};
 const participants = {{ conversation.participants|safe }};
@@ -131,45 +117,168 @@ let currentTurn = {{ conversation.current_turn or 0 }};
 let isProcessing = false;
 let autoPlayInterval = null;
 
+// Model color mapping
+const modelColors = {
+    'ollama': 'from-blue-600 to-blue-800',
+    'openai': 'from-green-600 to-green-800',
+    'anthropic': 'from-purple-600 to-purple-800',
+    'google': 'from-orange-600 to-orange-800',
+    'gemini': 'from-orange-600 to-orange-800',
+    'claude': 'from-purple-600 to-purple-800',
+    'gpt': 'from-green-600 to-green-800',
+    'system': 'from-gray-600 to-gray-800',
+    'user': 'from-indigo-600 to-indigo-800'
+};
+
+function getModelColor(model) {
+    const modelLower = model.toLowerCase();
+    for (const [key, value] of Object.entries(modelColors)) {
+        if (modelLower.includes(key)) {
+            return value;
+        }
+    }
+    return 'from-gray-600 to-gray-700';
+}
+
+// API call function with proper credentials
+async function apiCall(url, method = 'GET', body = null) {
+    const options = {
+        method: method,
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        credentials: 'same-origin' // Important: include cookies for session
+    };
+
+    if (body && method !== 'GET') {
+        options.body = JSON.stringify(body);
+    }
+
+    const response = await fetch(url, options);
+
+    if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return await response.json();
+}
+
+// Notification function
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    const bgColor = type === 'error' ? 'bg-red-600' : type === 'success' ? 'bg-green-600' : 'bg-blue-600';
+    notification.className = `fixed top-4 right-4 ${bgColor} text-white px-6 py-3 rounded-lg shadow-lg z-50 transition-opacity`;
+    notification.textContent = message;
+    document.body.appendChild(notification);
+
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
+}
+
 async function loadSenderOptions() {
     const senderSelect = document.getElementById('senderModel');
-    
+
     for (const participant of participants) {
         const option = document.createElement('option');
         option.value = participant;
         option.textContent = participant;
         senderSelect.appendChild(option);
     }
-    
+
     if (participants.length > 0) {
         senderSelect.value = participants[0];
     }
 }
 
+function renderParticipantsList() {
+    const container = document.getElementById('participantsList');
+
+    participants.forEach(participant => {
+        const div = document.createElement('div');
+        const colorClass = getModelColor(participant);
+        const modelName = participant.split(':')[0];
+
+        div.className = 'group flex items-center px-3 py-2 rounded-lg bg-gradient-to-r ' + colorClass + ' bg-opacity-20 hover:bg-opacity-30 transition-all cursor-pointer';
+        div.innerHTML = `
+            <div class="w-8 h-8 rounded-full bg-gradient-to-r ${colorClass} flex items-center justify-center mr-3">
+                <span class="text-white font-bold text-xs">${modelName[0].toUpperCase()}</span>
+            </div>
+            <div class="flex-1">
+                <p class="text-white font-medium text-sm">${participant.split(':')[0]}</p>
+                <p class="text-white text-xs opacity-75">${participant.includes(':') ? participant.split(':')[1] : 'Active'}</p>
+            </div>
+            <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse group-hover:animate-ping"></div>
+        `;
+        container.appendChild(div);
+    });
+}
+
 function addMessage(model, content, role = 'assistant') {
     const container = document.getElementById('messagesContainer');
     const typingIndicator = document.getElementById('typingIndicator');
-    
+
     const messageDiv = document.createElement('div');
-    messageDiv.className = `fade-in ${role === 'user' ? 'ml-auto' : ''} max-w-3xl`;
-    
+    messageDiv.className = `fade-in ${role === 'user' ? 'ml-auto' : ''} max-w-4xl mb-4`;
+
     const now = new Date().toLocaleString('de-DE');
-    
+    const colorClass = getModelColor(model);
+    const modelName = model.split(':')[0];
+
+    // Convert markdown to HTML
+    const htmlContent = marked.parse(content);
+
     messageDiv.innerHTML = `
-        <div class="glass-effect rounded-lg p-4 ${role === 'user' ? 'bg-purple-900 bg-opacity-30' : ''}">
-            <div class="flex items-center mb-2">
-                <span class="font-semibold text-dark-600 text-sm">
-                    ${model}
-                </span>
-                <span class="ml-2 text-dark-400 text-xs">
-                    ${now}
-                </span>
+        <div class="glass-effect rounded-lg overflow-hidden">
+            <div class="bg-gradient-to-r ${colorClass} px-4 py-2">
+                <div class="flex items-center justify-between">
+                    <span class="font-bold text-white text-sm">
+                        ${model}
+                    </span>
+                    <span class="text-white text-xs opacity-75">
+                        ${now}
+                    </span>
+                </div>
             </div>
-            <div class="text-dark-700 whitespace-pre-wrap">${content}</div>
+            <div class="p-4 bg-dark-50">
+                <div class="prose prose-invert max-w-none
+                    prose-headings:text-dark-700
+                    prose-p:text-dark-600
+                    prose-strong:text-dark-600
+                    prose-em:text-dark-600
+                    prose-blockquote:text-dark-500
+                    prose-blockquote:border-dark-300
+                    prose-code:text-purple-400
+                    prose-code:bg-dark-100
+                    prose-code:px-1
+                    prose-code:py-0.5
+                    prose-code:rounded
+                    prose-pre:bg-dark-100
+                    prose-pre:border
+                    prose-pre:border-dark-200
+                    prose-ul:text-dark-600
+                    prose-ol:text-dark-600
+                    prose-li:text-dark-600
+                    prose-table:text-dark-600
+                    prose-th:text-dark-700
+                    prose-td:text-dark-600
+                    prose-a:text-purple-400
+                    prose-a:no-underline
+                    prose-a:hover:text-purple-300">
+                    ${htmlContent}
+                </div>
+            </div>
         </div>
     `;
-    
-    container.insertBefore(messageDiv, typingIndicator);
+
+    // Find the typing indicator or append to end
+    const indicator = document.getElementById('typingIndicator');
+    if (indicator) {
+        container.insertBefore(messageDiv, indicator);
+    } else {
+        container.appendChild(messageDiv);
+    }
     container.scrollTop = container.scrollHeight;
 }
 
@@ -215,7 +324,72 @@ document.getElementById('messageForm').addEventListener('submit', async (e) => {
 
 document.addEventListener('DOMContentLoaded', () => {
     loadSenderOptions();
-    
+    renderParticipantsList();
+
+    // Render existing messages with markdown
+    const messages = [
+        {% for message in messages %}
+        {
+            model: {{ message.model|tojson|safe }},
+            content: {{ message.content|tojson|safe }},
+            role: {{ message.role|tojson|safe }},
+            created_at: {{ message.created_at|tojson|safe }}
+        }{% if not loop.last %},{% endif %}
+        {% endfor %}
+    ];
+
+    const renderedMessages = document.querySelectorAll('.rendered-message');
+    renderedMessages.forEach((div, index) => {
+        if (messages[index]) {
+            const msg = messages[index];
+            const colorClass = getModelColor(msg.model);
+            const htmlContent = marked.parse(msg.content);
+
+            div.innerHTML = `
+                <div class="glass-effect rounded-lg overflow-hidden">
+                    <div class="bg-gradient-to-r ${colorClass} px-4 py-2">
+                        <div class="flex items-center justify-between">
+                            <span class="font-bold text-white text-sm">
+                                ${msg.model}
+                            </span>
+                            <span class="text-white text-xs opacity-75">
+                                ${msg.created_at}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="p-4 bg-dark-50">
+                        <div class="prose prose-invert max-w-none
+                            prose-headings:text-dark-700
+                            prose-p:text-dark-600
+                            prose-strong:text-dark-600
+                            prose-em:text-dark-600
+                            prose-blockquote:text-dark-500
+                            prose-blockquote:border-dark-300
+                            prose-code:text-purple-400
+                            prose-code:bg-dark-100
+                            prose-code:px-1
+                            prose-code:py-0.5
+                            prose-code:rounded
+                            prose-pre:bg-dark-100
+                            prose-pre:border
+                            prose-pre:border-dark-200
+                            prose-ul:text-dark-600
+                            prose-ol:text-dark-600
+                            prose-li:text-dark-600
+                            prose-table:text-dark-600
+                            prose-th:text-dark-700
+                            prose-td:text-dark-600
+                            prose-a:text-purple-400
+                            prose-a:no-underline
+                            prose-a:hover:text-purple-300">
+                            ${htmlContent}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+    });
+
     const container = document.getElementById('messagesContainer');
     container.scrollTop = container.scrollHeight;
 });

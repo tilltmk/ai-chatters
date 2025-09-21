@@ -365,6 +365,9 @@ def conversation(conversation_id):
 @login_required
 def new_conversation():
     data = request.get_json()
+    if data is None:
+        return jsonify({'error': 'Invalid JSON in request'}), 400
+
     title = data.get('title', 'New Conversation')
     topic = data.get('topic', '')
     participants = json.dumps(data.get('participants', []))
