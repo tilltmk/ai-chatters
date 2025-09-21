@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center px-4 py-12">
+    <div class="max-w-4xl w-full space-y-12 animate-fade-in">
+        <div class="text-center space-y-6">
+            <h1 class="text-6xl md:text-7xl font-serif font-light tracking-tight">
+                AI <span class="text-gradient font-bold">Chatters</span>
+            </h1>
+            <p class="text-xl text-gray-400 font-light prose-elegant max-w-2xl mx-auto">
+                Professional orchestration platform for state-of-the-art AI language models with advanced reasoning capabilities
+            </p>
+        </div>
+
+        <div class="glass-panel rounded-2xl p-8 md:p-12 space-y-10 elegant-shadow">
+            <div class="grid md:grid-cols-2 gap-8">
+                <div>
+                    <h2 class="text-2xl font-serif font-semibold mb-6">Cloud API Models</h2>
+                    <div class="space-y-4">
+                        <div class="glass-panel-light rounded-lg p-4 hover:bg-white/5 transition-colors">
+                            <div class="flex items-start gap-4">
+                                <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-white font-bold">O</div>
+                                <div class="flex-1">
+                                    <h3 class="font-semibold text-white">OpenAI o1-preview</h3>
+                                    <p class="text-sm text-gray-400 mt-1">Advanced reasoning with chain-of-thought processing</p>
+                                    <code class="text-xs text-gray-500 font-mono mt-2 block">POST /v1/chat/completions</code>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="glass-panel-light rounded-lg p-4 hover:bg-white/5 transition-colors">
+                            <div class="flex items-start gap-4">
+                                <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center text-white font-bold">G</div>
+                                <div class="flex-1">
+                                    <h3 class="font-semibold text-white">GPT-4 Turbo</h3>
+                                    <p class="text-sm text-gray-400 mt-1">128K context, vision capabilities</p>
+                                    <code class="text-xs text-gray-500 font-mono mt-2 block">POST /v1/chat/completions</code>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="glass-panel-light rounded-lg p-4 hover:bg-white/5 transition-colors">
+                            <div class="flex items-start gap-4">
+                                <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center text-white font-bold">C</div>
+                                <div class="flex-1">
+                                    <h3 class="font-semibold text-white">Claude 3 Opus</h3>
+                                    <p class="text-sm text-gray-400 mt-1">200K context, superior comprehension</p>
+                                    <code class="text-xs text-gray-500 font-mono mt-2 block">POST /v1/messages</code>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="glass-panel-light rounded-lg p-4 hover:bg-white/5 transition-colors">
+                            <div class="flex items-start gap-4">
+                                <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-yellow-500 to-orange-600 flex items-center justify-center text-white font-bold">G</div>
+                                <div class="flex-1">
+                                    <h3 class="font-semibold text-white">Gemini 1.5 Pro</h3>
+                                    <p class="text-sm text-gray-400 mt-1">1M token context window</p>
+                                    <code class="text-xs text-gray-500 font-mono mt-2 block">POST /v1beta/models/gemini-1.5-pro:generateContent</code>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <h2 class="text-2xl font-serif font-semibold mb-6">Local Models (Ollama)</h2>
+                    <div class="space-y-4">
+                        <div class="glass-panel-light rounded-lg p-4 hover:bg-white/5 transition-colors">
+                            <div class="flex items-start gap-4">
+                                <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-red-500 to-rose-600 flex items-center justify-center text-white font-bold">L</div>
+                                <div class="flex-1">
+                                    <h3 class="font-semibold text-white">Llama 3.1 405B</h3>
+                                    <p class="text-sm text-gray-400 mt-1">State-of-the-art open model</p>
+                                    <button class="text-xs text-indigo-400 hover:text-indigo-300 mt-2">Download via Ollama</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="glass-panel-light rounded-lg p-4 hover:bg-white/5 transition-colors">
+                            <div class="flex items-start gap-4">
+                                <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center text-white font-bold">M</div>
+                                <div class="flex-1">
+                                    <h3 class="font-semibold text-white">Mistral Large</h3>
+                                    <p class="text-sm text-gray-400 mt-1">32K context, multilingual</p>
+                                    <button class="text-xs text-indigo-400 hover:text-indigo-300 mt-2">Download via Ollama</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="glass-panel-light rounded-lg p-4 hover:bg-white/5 transition-colors">
+                            <div class="flex items-start gap-4">
+                                <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center text-white font-bold">Q</div>
+                                <div class="flex-1">
+                                    <h3 class="font-semibold text-white">Qwen 2.5 72B</h3>
+                                    <p class="text-sm text-gray-400 mt-1">Excellent multilingual performance</p>
+                                    <button class="text-xs text-indigo-400 hover:text-indigo-300 mt-2">Download via Ollama</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="glass-panel-light rounded-lg p-4 hover:bg-white/5 transition-colors">
+                            <div class="flex items-start gap-4">
+                                <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-gray-500 to-gray-600 flex items-center justify-center text-white font-bold">C</div>
+                                <div class="flex-1">
+                                    <h3 class="font-semibold text-white">CodeLlama 70B</h3>
+                                    <p class="text-sm text-gray-400 mt-1">Specialized for code generation</p>
+                                    <button class="text-xs text-indigo-400 hover:text-indigo-300 mt-2">Download via Ollama</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="border-t border-gray-800 pt-8">
+                <h3 class="text-lg font-serif font-semibold mb-4 text-center">Key Features</h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div class="text-center">
+                        <div class="text-gray-400 mb-1">Response Time</div>
+                        <div class="font-mono text-white">< 100ms</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-gray-400 mb-1">Uptime SLA</div>
+                        <div class="font-mono text-white">99.99%</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-gray-400 mb-1">Encryption</div>
+                        <div class="font-mono text-white">AES-256</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-gray-400 mb-1">Compliance</div>
+                        <div class="font-mono text-white">GDPR/SOC2</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-4">
+                <a href="/login" class="flex-1 btn-primary text-white py-4 px-8 rounded-lg font-semibold text-center transition-all duration-300 hover:shadow-xl">
+                    Sign In
+                </a>
+                <a href="/register" class="flex-1 glass-panel-light py-4 px-8 rounded-lg font-semibold text-center hover:bg-white/5 transition-all duration-300 border border-gray-700 hover:border-gray-600">
+                    Create Account
+                </a>
+            </div>
+        </div>
+
+        <div class="text-center text-sm text-gray-500">
+            <p>Enterprise-grade infrastructure powered by redundant GPU clusters</p>
+            <p class="mt-1">ISO 27001 certified • HIPAA compliant • EU data residency available</p>
+        </div>
+    </div>
+</div>
+
+<div id="skeleton-container" class="hidden"></div>
+
+<script>
+// Show skeleton loader initially
+document.addEventListener('DOMContentLoaded', function() {
+    const content = document.querySelector('.animate-fade-in');
+    if (content) {
+        // Simulate loading state
+        setTimeout(() => {
+            content.style.opacity = '1';
+        }, 100);
+    }
+});
+</script>
+{% endblock %}

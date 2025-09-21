@@ -1,0 +1,356 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="min-h-screen flex">
+    <div class="w-72 glass-panel border-r border-gray-800">
+        <div class="p-6 border-b border-gray-800">
+            <h1 class="text-2xl font-serif font-bold text-gradient">AI Chatters</h1>
+            <p class="text-xs text-gray-500 mt-1">Professional Edition</p>
+        </div>
+
+        <nav class="p-4 space-y-2">
+            <a href="/dashboard" class="flex items-center px-4 py-3 bg-white/5 rounded-lg text-white">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path>
+                </svg>
+                <span>Conversations</span>
+            </a>
+
+            <a href="/settings" class="flex items-center px-4 py-3 text-gray-400 hover:bg-white/5 rounded-lg transition-colors">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path>
+                </svg>
+                <span>Model Management</span>
+            </a>
+
+            <a href="/settings" class="flex items-center px-4 py-3 text-gray-400 hover:bg-white/5 rounded-lg transition-colors">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                </svg>
+                <span>API Settings</span>
+            </a>
+
+            <a href="/logout" class="flex items-center px-4 py-3 text-gray-400 hover:bg-white/5 rounded-lg transition-colors">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                </svg>
+                <span>Sign Out</span>
+            </a>
+        </nav>
+
+        <div class="absolute bottom-0 left-0 w-72 p-4 border-t border-gray-800">
+            <div class="space-y-3">
+                <div class="text-xs text-gray-500 uppercase tracking-wider">API Status</div>
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                    <div class="flex items-center {{ 'text-emerald-400' if 'openai' in configured_services else 'text-gray-600' }}">
+                        <span class="w-2 h-2 rounded-full {{ 'bg-emerald-400' if 'openai' in configured_services else 'bg-gray-600' }} mr-2"></span>
+                        OpenAI
+                    </div>
+                    <div class="flex items-center {{ 'text-emerald-400' if 'anthropic' in configured_services else 'text-gray-600' }}">
+                        <span class="w-2 h-2 rounded-full {{ 'bg-emerald-400' if 'anthropic' in configured_services else 'bg-gray-600' }} mr-2"></span>
+                        Anthropic
+                    </div>
+                    <div class="flex items-center {{ 'text-emerald-400' if 'google' in configured_services else 'text-gray-600' }}">
+                        <span class="w-2 h-2 rounded-full {{ 'bg-emerald-400' if 'google' in configured_services else 'bg-gray-600' }} mr-2"></span>
+                        Google
+                    </div>
+                    <div class="flex items-center {{ 'text-emerald-400' if 'ollama' in configured_services else 'text-gray-600' }}">
+                        <span class="w-2 h-2 rounded-full {{ 'bg-emerald-400' if 'ollama' in configured_services else 'bg-gray-600' }} mr-2"></span>
+                        Ollama
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="flex-1 p-8">
+        <div class="max-w-7xl mx-auto">
+            <div class="flex justify-between items-center mb-10">
+                <div>
+                    <h2 class="text-4xl font-serif font-light">Conversations</h2>
+                    <p class="text-gray-400 mt-2">Orchestrate AI model interactions with advanced reasoning</p>
+                </div>
+
+                <button onclick="showNewConversationModal()"
+                    class="btn-primary text-white px-6 py-3 rounded-lg font-semibold transition-all duration-300 hover:shadow-xl flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                    </svg>
+                    New Conversation
+                </button>
+            </div>
+
+            <div id="conversationsContainer">
+                <div class="skeleton h-32 rounded-lg mb-4"></div>
+                <div class="skeleton h-32 rounded-lg mb-4"></div>
+                <div class="skeleton h-32 rounded-lg"></div>
+            </div>
+
+            {% if conversations %}
+            <div class="grid gap-4" id="conversationsList" style="display:none;">
+                {% for conv in conversations %}
+                <a href="/conversation/{{ conv.id }}" class="glass-panel rounded-lg p-6 hover:bg-white/5 transition-all elegant-shadow group">
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1">
+                            <h3 class="text-xl font-serif font-semibold mb-3">{{ conv.title }}</h3>
+                            {% if conv.topic %}
+                            <p class="text-gray-400 text-sm mb-3 prose-elegant">{{ conv.topic }}</p>
+                            {% endif %}
+                            <div class="flex flex-wrap gap-2 mb-3">
+                                {% for participant in conv.participants_list %}
+                                <span class="px-3 py-1 glass-panel-light rounded-full text-xs font-mono">
+                                    {{ participant }}
+                                </span>
+                                {% endfor %}
+                                {% if conv.auto_mode %}
+                                <span class="px-3 py-1 bg-indigo-500/20 text-indigo-400 rounded-full text-xs">
+                                    Auto Mode
+                                </span>
+                                {% endif %}
+                            </div>
+                            <p class="text-gray-500 text-xs font-mono">
+                                Created: {{ conv.created_at }}
+                            </p>
+                        </div>
+                        <svg class="w-6 h-6 text-gray-600 group-hover:text-gray-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                        </svg>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="glass-panel rounded-lg p-16 text-center" id="emptyState" style="display:none;">
+                <svg class="w-24 h-24 mx-auto mb-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path>
+                </svg>
+                <h3 class="text-2xl font-serif font-light mb-2">No Conversations Yet</h3>
+                <p class="text-gray-400 mb-8">Create your first AI model conversation to get started</p>
+                <button onclick="showNewConversationModal()"
+                    class="btn-primary text-white px-6 py-3 rounded-lg font-semibold inline-flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                    </svg>
+                    Create First Conversation
+                </button>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div id="newConversationModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50">
+    <div class="glass-panel rounded-2xl p-10 max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto elegant-shadow">
+        <h3 class="text-3xl font-serif font-light mb-8">Create New Conversation</h3>
+
+        <form id="newConversationForm" class="space-y-6">
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-2">
+                    Conversation Title
+                </label>
+                <input type="text" id="conversationTitle" required
+                    class="w-full px-4 py-3 bg-black/30 border border-gray-800 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    placeholder="e.g., Philosophy Discussion, Code Review Session">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-2">
+                    Select AI Models (minimum 2)
+                </label>
+                <div id="modelSelection" class="grid grid-cols-2 gap-3 max-h-64 overflow-y-auto p-4 glass-panel-light rounded-lg">
+                    <div class="skeleton h-12 rounded"></div>
+                    <div class="skeleton h-12 rounded"></div>
+                    <div class="skeleton h-12 rounded"></div>
+                    <div class="skeleton h-12 rounded"></div>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-2">
+                    Conversation Context (for automatic mode)
+                </label>
+                <textarea id="conversationTopic"
+                    class="w-full px-4 py-3 bg-black/30 border border-gray-800 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent font-mono text-sm"
+                    placeholder="Provide a topic or question for the AI models to discuss..."
+                    rows="4"></textarea>
+            </div>
+
+            <div class="space-y-4 p-4 glass-panel-light rounded-lg">
+                <label class="flex items-center cursor-pointer">
+                    <input type="checkbox" id="autoMode"
+                        class="mr-3 h-4 w-4 bg-black border-gray-700 rounded text-indigo-600 focus:ring-indigo-500">
+                    <div>
+                        <span class="text-white">Automatic Mode</span>
+                        <p class="text-xs text-gray-400">Models will respond alternately without user intervention</p>
+                    </div>
+                </label>
+
+                <label class="flex items-center cursor-pointer">
+                    <input type="checkbox" id="modelsAware" checked
+                        class="mr-3 h-4 w-4 bg-black border-gray-700 rounded text-indigo-600 focus:ring-indigo-500">
+                    <div>
+                        <span class="text-white">Context Awareness</span>
+                        <p class="text-xs text-gray-400">Models know about each other's identities</p>
+                    </div>
+                </label>
+
+                <label class="flex items-center cursor-pointer">
+                    <input type="checkbox" id="reasoningMode"
+                        class="mr-3 h-4 w-4 bg-black border-gray-700 rounded text-indigo-600 focus:ring-indigo-500">
+                    <div>
+                        <span class="text-white">Enable Chain-of-Thought</span>
+                        <p class="text-xs text-gray-400">Use o1-preview's reasoning capabilities when available</p>
+                    </div>
+                </label>
+
+                <div class="flex items-center justify-between">
+                    <label class="text-white text-sm">Maximum Turns:</label>
+                    <input type="number" id="maxTurns" value="20" min="5" max="100"
+                        class="w-20 px-3 py-1 bg-black/30 border border-gray-800 rounded text-white text-center focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+            </div>
+
+            <div class="flex space-x-3 pt-4">
+                <button type="submit"
+                    class="flex-1 btn-primary text-white py-3 rounded-lg font-semibold transition-all">
+                    Create Conversation
+                </button>
+                <button type="button" onclick="closeNewConversationModal()"
+                    class="flex-1 glass-panel-light py-3 rounded-lg font-semibold hover:bg-white/5 transition-all">
+                    Cancel
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+let availableModels = [];
+
+const modelConfigs = {
+    'openai': {
+        'o1-preview': { name: 'OpenAI o1-preview', endpoint: '/v1/chat/completions', reasoning: true },
+        'gpt-4-turbo': { name: 'GPT-4 Turbo', endpoint: '/v1/chat/completions' },
+        'gpt-4': { name: 'GPT-4', endpoint: '/v1/chat/completions' },
+        'gpt-3.5-turbo': { name: 'GPT-3.5 Turbo', endpoint: '/v1/chat/completions' }
+    },
+    'anthropic': {
+        'claude-3-opus': { name: 'Claude 3 Opus', endpoint: '/v1/messages' },
+        'claude-3-sonnet': { name: 'Claude 3 Sonnet', endpoint: '/v1/messages' },
+        'claude-3-haiku': { name: 'Claude 3 Haiku', endpoint: '/v1/messages' }
+    },
+    'google': {
+        'gemini-1.5-pro': { name: 'Gemini 1.5 Pro', endpoint: '/v1beta/models/gemini-1.5-pro:generateContent' },
+        'gemini-1.5-flash': { name: 'Gemini 1.5 Flash', endpoint: '/v1beta/models/gemini-1.5-flash:generateContent' }
+    },
+    'ollama': {
+        'llama3.1-405b': { name: 'Llama 3.1 405B', local: true },
+        'mistral-large': { name: 'Mistral Large', local: true },
+        'qwen2.5-72b': { name: 'Qwen 2.5 72B', local: true },
+        'codellama-70b': { name: 'CodeLlama 70B', local: true }
+    }
+};
+
+async function loadAvailableModels() {
+    try {
+        const response = await apiCall('/api/models');
+        availableModels = response || [];
+
+        const modelSelection = document.getElementById('modelSelection');
+
+        if (availableModels.length === 0) {
+            modelSelection.innerHTML = '<div class="col-span-2 text-center text-gray-400">No models configured. Please add API keys in settings.</div>';
+            return;
+        }
+
+        modelSelection.innerHTML = availableModels.map(model => {
+            return `
+                <label class="flex items-center p-3 glass-panel rounded-lg cursor-pointer hover:bg-white/5 transition-colors">
+                    <input type="checkbox" name="models" value="${model.id}"
+                        class="mr-3 h-4 w-4 bg-black border-gray-700 rounded text-indigo-600 focus:ring-indigo-500">
+                    <div class="flex-1">
+                        <div class="font-medium">${model.name}</div>
+                        <div class="text-xs text-gray-500 font-mono">${model.service}</div>
+                    </div>
+                </label>
+            `;
+        }).join('');
+    } catch (error) {
+        console.error('Error loading models:', error);
+        const modelSelection = document.getElementById('modelSelection');
+        modelSelection.innerHTML = '<div class="col-span-2 text-center text-red-400">Error loading models. Check your API keys in settings.</div>';
+    }
+}
+
+function showNewConversationModal() {
+    document.getElementById('newConversationModal').classList.remove('hidden');
+    loadAvailableModels();
+}
+
+function closeNewConversationModal() {
+    document.getElementById('newConversationModal').classList.add('hidden');
+}
+
+document.getElementById('newConversationForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const submitButton = e.target.querySelector('button[type="submit"]');
+    const originalText = submitButton.textContent;
+    submitButton.innerHTML = '<div class="skeleton h-5 w-32 mx-auto rounded"></div>';
+    submitButton.disabled = true;
+
+    const title = document.getElementById('conversationTitle').value;
+    const topic = document.getElementById('conversationTopic').value;
+    const autoMode = document.getElementById('autoMode').checked;
+    const modelsAware = document.getElementById('modelsAware').checked;
+    const reasoningMode = document.getElementById('reasoningMode').checked;
+    const maxTurns = parseInt(document.getElementById('maxTurns').value);
+    const selectedModels = Array.from(document.querySelectorAll('input[name="models"]:checked'))
+        .map(input => input.value);
+
+    if (selectedModels.length < 2) {
+        showNotification('Please select at least 2 models', 'warning');
+        submitButton.textContent = originalText;
+        submitButton.disabled = false;
+        return;
+    }
+
+    if (autoMode && !topic) {
+        showNotification('Please provide a topic for automatic mode', 'warning');
+        submitButton.textContent = originalText;
+        submitButton.disabled = false;
+        return;
+    }
+
+    try {
+        const result = await apiCall('/api/conversation/new', 'POST', {
+            title,
+            topic,
+            participants: selectedModels,
+            auto_mode: autoMode,
+            models_aware: modelsAware,
+            reasoning_mode: reasoningMode,
+            max_turns: maxTurns
+        });
+
+        showNotification('Conversation created successfully', 'success');
+        window.location.href = `/conversation/${result.id}`;
+    } catch (error) {
+        submitButton.textContent = originalText;
+        submitButton.disabled = false;
+    }
+});
+
+// Hide skeleton and show content
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        document.getElementById('conversationsContainer').style.display = 'none';
+        const list = document.getElementById('conversationsList');
+        const empty = document.getElementById('emptyState');
+        if (list) list.style.display = 'grid';
+        if (empty) empty.style.display = 'block';
+    }, 500);
+});
+</script>
+{% endblock %}

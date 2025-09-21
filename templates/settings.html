@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="min-h-screen flex">
+    <div class="w-64 bg-dark-100 border-r border-dark-200">
+        <div class="p-6">
+            <h1 class="text-2xl font-bold gradient-text">AI Chatters</h1>
+        </div>
+        
+        <nav class="px-4 space-y-2">
+            <a href="/dashboard" class="flex items-center px-4 py-2 text-dark-500 hover:bg-dark-200 rounded-lg transition-colors">
+                <span class="mr-3">💬</span>
+                <span>{{ t.conversations }}</span>
+            </a>
+            
+            <a href="/settings" class="flex items-center px-4 py-2 text-dark-600 bg-dark-200 rounded-lg">
+                <span class="mr-3">⚙️</span>
+                <span>{{ t.settings }}</span>
+            </a>
+            
+            <a href="/logout" class="flex items-center px-4 py-2 text-dark-500 hover:bg-dark-200 rounded-lg transition-colors">
+                <span class="mr-3">🚪</span>
+                <span>{{ t.logout }}</span>
+            </a>
+        </nav>
+    </div>
+    
+    <div class="flex-1 p-8">
+        <div class="max-w-4xl mx-auto">
+            <h2 class="text-3xl font-bold text-dark-700 mb-8">{{ t.settings }}</h2>
+            
+            <!-- Language Settings -->
+            <div class="glass-effect rounded-lg p-6 mb-6">
+                <h3 class="text-xl font-semibold text-dark-700 mb-4">{{ t.ui_language }}</h3>
+                <div class="flex space-x-3">
+                    <button onclick="changeLanguage('de')" 
+                        class="px-4 py-2 rounded-lg transition-colors {{ 'bg-purple-600 text-white' if current_language == 'de' else 'bg-dark-200 text-dark-600 hover:bg-dark-300' }}">
+                        🇩🇪 {{ t.german }}
+                    </button>
+                    <button onclick="changeLanguage('en')" 
+                        class="px-4 py-2 rounded-lg transition-colors {{ 'bg-purple-600 text-white' if current_language == 'en' else 'bg-dark-200 text-dark-600 hover:bg-dark-300' }}">
+                        🇬🇧 {{ t.english }}
+                    </button>
+                </div>
+            </div>
+            
+            <h3 class="text-2xl font-bold text-dark-700 mb-6">{{ t.api_settings }}</h3>
+            
+            <div class="space-y-6">
+                <div class="glass-effect rounded-lg p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center">
+                            <span class="text-2xl mr-3">🦙</span>
+                            <div>
+                                <h3 class="text-xl font-semibold text-dark-700">Ollama</h3>
+                                <p class="text-dark-400 text-sm">{{ t.local_ai_models }} (localhost:11434)</p>
+                            </div>
+                        </div>
+                        <span id="ollama-status" class="px-3 py-1 rounded text-sm {{ 'bg-green-900 text-green-300' if services.ollama else 'bg-red-900 text-red-300' }}">
+                            {{ t.configured if services.ollama else t.not_configured }}
+                        </span>
+                    </div>
+                    
+                    <div class="space-y-3">
+                        <input type="text" id="ollama-url" 
+                            class="w-full px-3 py-2 bg-dark-100 border border-dark-200 rounded-lg text-dark-700 placeholder-dark-400 focus:outline-none focus:ring-2 focus:ring-purple-600"
+                            placeholder="http://localhost:11434 (Standard)"
+                            value="http://localhost:11434">
+                        
+                        <div class="flex space-x-3">
+                            <button onclick="saveApiKey('ollama')"
+                                class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
+                                {{ t.save }}
+                            </button>
+                            <button onclick="testConnection('ollama')"
+                                class="px-4 py-2 bg-dark-200 text-dark-600 rounded-lg hover:bg-dark-300 transition-colors">
+                                {{ t.test_connection }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="glass-effect rounded-lg p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center">
+                            <span class="text-2xl mr-3">🤖</span>
+                            <div>
+                                <h3 class="text-xl font-semibold text-dark-700">OpenAI (ChatGPT)</h3>
+                                <p class="text-dark-400 text-sm">GPT-3.5, GPT-4 und weitere Modelle</p>
+                            </div>
+                        </div>
+                        <span id="openai-status" class="px-3 py-1 rounded text-sm {{ 'bg-green-900 text-green-300' if services.openai else 'bg-red-900 text-red-300' }}">
+                            {{ t.configured if services.openai else t.not_configured }}
+                        </span>
+                    </div>
+                    
+                    <div class="space-y-3">
+                        <input type="password" id="openai-key" 
+                            class="w-full px-3 py-2 bg-dark-100 border border-dark-200 rounded-lg text-dark-700 placeholder-dark-400 focus:outline-none focus:ring-2 focus:ring-purple-600"
+                            placeholder="sk-...">
+                        
+                        <div class="flex space-x-3">
+                            <button onclick="saveApiKey('openai')"
+                                class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
+                                {{ t.save }}
+                            </button>
+                            <button onclick="testConnection('openai')"
+                                class="px-4 py-2 bg-dark-200 text-dark-600 rounded-lg hover:bg-dark-300 transition-colors">
+                                {{ t.test_connection }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="glass-effect rounded-lg p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center">
+                            <span class="text-2xl mr-3">🧠</span>
+                            <div>
+                                <h3 class="text-xl font-semibold text-dark-700">Anthropic (Claude)</h3>
+                                <p class="text-dark-400 text-sm">Claude 3 Opus, Sonnet und Haiku</p>
+                            </div>
+                        </div>
+                        <span id="anthropic-status" class="px-3 py-1 rounded text-sm {{ 'bg-green-900 text-green-300' if services.anthropic else 'bg-red-900 text-red-300' }}">
+                            {{ t.configured if services.anthropic else t.not_configured }}
+                        </span>
+                    </div>
+                    
+                    <div class="space-y-3">
+                        <input type="password" id="anthropic-key" 
+                            class="w-full px-3 py-2 bg-dark-100 border border-dark-200 rounded-lg text-dark-700 placeholder-dark-400 focus:outline-none focus:ring-2 focus:ring-purple-600"
+                            placeholder="sk-ant-...">
+                        
+                        <div class="flex space-x-3">
+                            <button onclick="saveApiKey('anthropic')"
+                                class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
+                                {{ t.save }}
+                            </button>
+                            <button onclick="testConnection('anthropic')"
+                                class="px-4 py-2 bg-dark-200 text-dark-600 rounded-lg hover:bg-dark-300 transition-colors">
+                                {{ t.test_connection }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="glass-effect rounded-lg p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center">
+                            <span class="text-2xl mr-3">🔷</span>
+                            <div>
+                                <h3 class="text-xl font-semibold text-dark-700">Google Gemini</h3>
+                                <p class="text-dark-400 text-sm">Gemini Pro, Gemini Flash und weitere Modelle</p>
+                            </div>
+                        </div>
+                        <span id="google-status" class="px-3 py-1 rounded text-sm {{ 'bg-green-900 text-green-300' if services.google else 'bg-red-900 text-red-300' }}">
+                            {{ t.configured if services.google else t.not_configured }}
+                        </span>
+                    </div>
+
+                    <div class="space-y-3">
+                        <input type="password" id="google-key"
+                            class="w-full px-3 py-2 bg-dark-100 border border-dark-200 rounded-lg text-dark-700 placeholder-dark-400 focus:outline-none focus:ring-2 focus:ring-purple-600"
+                            placeholder="Google AI Studio API Key">
+
+                        <div class="flex space-x-3">
+                            <button onclick="saveApiKey('google')"
+                                class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
+                                {{ t.save }}
+                            </button>
+                            <button onclick="testConnection('google')"
+                                class="px-4 py-2 bg-dark-200 text-dark-600 rounded-lg hover:bg-dark-300 transition-colors">
+                                {{ t.test_connection }}
+                            </button>
+                        </div>
+
+                        <p class="text-xs text-dark-400">
+                            {{ t.get_api_key }} <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-purple-400 hover:text-purple-300">Google AI Studio</a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-8 p-4 bg-dark-100 rounded-lg">
+                <h4 class="text-sm font-semibold text-dark-600 mb-2">{{ t.security_notice }}</h4>
+                <p class="text-dark-400 text-sm">
+                    {{ t.security_text }}
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const translations = {{ t | tojson }};
+
+async function changeLanguage(lang) {
+    try {
+        await apiCall('/api/change-language', 'POST', { language: lang });
+        window.location.reload();
+    } catch (error) {
+        console.error('Error changing language:', error);
+    }
+}
+
+async function saveApiKey(service) {
+    let apiKey = '';
+    
+    if (service === 'ollama') {
+        apiKey = document.getElementById('ollama-url').value || 'http://localhost:11434';
+    } else if (service === 'openai') {
+        apiKey = document.getElementById('openai-key').value;
+    } else if (service === 'anthropic') {
+        apiKey = document.getElementById('anthropic-key').value;
+    } else if (service === 'google') {
+        apiKey = document.getElementById('google-key').value;
+    }
+    
+    if (!apiKey && service !== 'ollama') {
+        showNotification(translations.please_enter_api_key, 'error');
+        return;
+    }
+    
+    try {
+        await apiCall('/api/save-api-key', 'POST', {
+            service,
+            api_key: apiKey
+        });
+        
+        showNotification(`${service} ${translations.api_key_saved}`, 'success');
+        document.getElementById(`${service}-status`).className = 'px-3 py-1 rounded text-sm bg-green-900 text-green-300';
+        document.getElementById(`${service}-status`).textContent = translations.configured;
+        
+        if (service !== 'ollama') {
+            document.getElementById(`${service}-key`).value = '';
+        }
+    } catch (error) {
+        console.error('Error saving API key:', error);
+    }
+}
+
+async function testConnection(service) {
+    try {
+        const result = await apiCall('/api/test-connection', 'POST', { service });
+        
+        if (result.models) {
+            showNotification(`${translations.connection_successful} ${result.models.length} ${translations.models_available}`, 'success');
+        } else {
+            showNotification(translations.connection_successful, 'success');
+        }
+    } catch (error) {
+        showNotification(`${translations.connection_error}: ${error.message}`, 'error');
+    }
+}
+</script>
+{% endblock %}

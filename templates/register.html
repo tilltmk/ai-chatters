@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center px-4 py-12">
+    <div class="max-w-md w-full space-y-8 fade-in">
+        <div class="text-center space-y-3">
+            <div class="inline-block animate-float">
+                <span class="text-6xl">🎉</span>
+            </div>
+            <h2 class="text-4xl md:text-5xl font-bold gradient-text">Konto erstellen</h2>
+            <p class="text-dark-400 text-lg">Starten Sie Ihre KI-Reise noch heute</p>
+        </div>
+
+        <form id="registerForm" class="glass-effect rounded-2xl p-8 md:p-10 space-y-6 hover-lift neon-glow">
+            <div class="space-y-2">
+                <label for="username" class="flex items-center gap-2 text-sm font-medium text-dark-400">
+                    <span>👤</span>
+                    Benutzername
+                </label>
+                <div class="relative group">
+                    <input id="username" name="username" type="text" required
+                        class="w-full px-4 py-3 bg-dark-100/50 backdrop-blur border border-white/10 rounded-xl text-dark-300 placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 group-hover:border-white/20"
+                        placeholder="johndoe">
+                    <div class="absolute inset-0 rounded-xl bg-gradient-to-r from-purple-600/20 to-blue-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none"></div>
+                </div>
+                <p class="text-xs text-dark-500 ml-1">Wählen Sie einen einzigartigen Namen</p>
+            </div>
+
+            <div class="space-y-2">
+                <label for="email" class="flex items-center gap-2 text-sm font-medium text-dark-400">
+                    <span>📧</span>
+                    E-Mail-Adresse
+                </label>
+                <div class="relative group">
+                    <input id="email" name="email" type="email" required
+                        class="w-full px-4 py-3 bg-dark-100/50 backdrop-blur border border-white/10 rounded-xl text-dark-300 placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 group-hover:border-white/20"
+                        placeholder="ihre@email.de">
+                    <div class="absolute inset-0 rounded-xl bg-gradient-to-r from-purple-600/20 to-blue-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none"></div>
+                </div>
+            </div>
+
+            <div class="space-y-2">
+                <label for="password" class="flex items-center gap-2 text-sm font-medium text-dark-400">
+                    <span>🔐</span>
+                    Passwort
+                </label>
+                <div class="relative group">
+                    <input id="password" name="password" type="password" required
+                        class="w-full px-4 py-3 bg-dark-100/50 backdrop-blur border border-white/10 rounded-xl text-dark-300 placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 group-hover:border-white/20"
+                        placeholder="••••••••" minlength="8">
+                    <div class="absolute inset-0 rounded-xl bg-gradient-to-r from-purple-600/20 to-blue-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none"></div>
+                </div>
+                <div class="flex items-center gap-2 mt-2 text-xs text-dark-500">
+                    <span id="length-check">⭕</span> Min. 8 Zeichen
+                    <span id="number-check" class="ml-2">⭕</span> Eine Zahl
+                    <span id="special-check" class="ml-2">⭕</span> Ein Sonderzeichen
+                </div>
+            </div>
+
+            <div class="space-y-2">
+                <label for="confirmPassword" class="flex items-center gap-2 text-sm font-medium text-dark-400">
+                    <span>🔐</span>
+                    Passwort bestätigen
+                </label>
+                <div class="relative group">
+                    <input id="confirmPassword" name="confirmPassword" type="password" required
+                        class="w-full px-4 py-3 bg-dark-100/50 backdrop-blur border border-white/10 rounded-xl text-dark-300 placeholder-dark-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 group-hover:border-white/20"
+                        placeholder="••••••••">
+                    <div class="absolute inset-0 rounded-xl bg-gradient-to-r from-purple-600/20 to-blue-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none"></div>
+                </div>
+                <p id="password-match" class="text-xs text-dark-500 ml-1 hidden">
+                    <span class="text-green-400">✅ Passwörter stimmen überein</span>
+                </p>
+            </div>
+
+            <div class="flex items-start">
+                <input id="terms" name="terms" type="checkbox" required
+                    class="h-4 w-4 bg-dark-100 border-white/20 rounded text-purple-600 focus:ring-purple-500 mt-0.5">
+                <label for="terms" class="ml-2 block text-sm text-dark-400">
+                    Ich stimme den <a href="#" class="text-purple-400 hover:text-purple-300 underline">Nutzungsbedingungen</a> und der <a href="#" class="text-purple-400 hover:text-purple-300 underline">Datenschutzrichtlinie</a> zu
+                </label>
+            </div>
+
+            <button type="submit"
+                class="w-full py-4 px-6 bg-gradient-to-r from-purple-600 via-pink-600 to-indigo-600 animate-gradient-x text-white rounded-xl font-bold text-lg hover:shadow-2xl hover:shadow-purple-500/25 transition-all duration-300 transform hover:scale-105 hover-lift shimmer">
+                <span class="flex items-center justify-center gap-2">
+                    <span>🚀</span>
+                    Kostenlos registrieren
+                    <span class="inline-block transition-transform group-hover:translate-x-1">→</span>
+                </span>
+            </button>
+
+            <div class="text-center">
+                <div class="inline-flex items-center gap-2 text-xs text-dark-500 mb-4">
+                    <span>🛡️</span> SSL-verschlüsselt
+                    <span>•</span>
+                    <span>🔒</span> GDPR-konform
+                    <span>•</span>
+                    <span>⚡</span> Sofortiger Zugang
+                </div>
+            </div>
+
+            <div class="text-center text-sm text-dark-400">
+                <span>Bereits ein Konto?</span>
+                <a href="/login" class="text-purple-400 hover:text-purple-300 font-semibold ml-1 transition-colors hover:underline">
+                    Jetzt anmelden 👋
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+const passwordInput = document.getElementById('password');
+const confirmPasswordInput = document.getElementById('confirmPassword');
+const lengthCheck = document.getElementById('length-check');
+const numberCheck = document.getElementById('number-check');
+const specialCheck = document.getElementById('special-check');
+const passwordMatch = document.getElementById('password-match');
+
+passwordInput.addEventListener('input', (e) => {
+    const password = e.target.value;
+
+    lengthCheck.textContent = password.length >= 8 ? '✅' : '⭕';
+    numberCheck.textContent = /\d/.test(password) ? '✅' : '⭕';
+    specialCheck.textContent = /[!@#$%^&*(),.?":{}|<>]/.test(password) ? '✅' : '⭕';
+
+    if (confirmPasswordInput.value) {
+        checkPasswordMatch();
+    }
+});
+
+confirmPasswordInput.addEventListener('input', checkPasswordMatch);
+
+function checkPasswordMatch() {
+    if (confirmPasswordInput.value && passwordInput.value === confirmPasswordInput.value) {
+        passwordMatch.classList.remove('hidden');
+    } else {
+        passwordMatch.classList.add('hidden');
+    }
+}
+
+document.getElementById('registerForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const submitButton = e.target.querySelector('button[type="submit"]');
+    const originalContent = submitButton.innerHTML;
+    submitButton.innerHTML = '<span class="flex items-center justify-center gap-2"><span class="animate-spin">⏳</span> Wird registriert...</span>';
+    submitButton.disabled = true;
+
+    const formData = new FormData(e.target);
+    const password = formData.get('password');
+    const confirmPassword = formData.get('confirmPassword');
+
+    if (password !== confirmPassword) {
+        showNotification('Passwörter stimmen nicht überein ❌', 'error');
+        submitButton.innerHTML = originalContent;
+        submitButton.disabled = false;
+        return;
+    }
+
+    try {
+        await apiCall('/register', 'POST', {
+            username: formData.get('username'),
+            email: formData.get('email'),
+            password: password
+        });
+
+        showNotification('Registrierung erfolgreich! 🎉', 'success');
+        setTimeout(() => {
+            window.location.href = '/login';
+        }, 1500);
+    } catch (error) {
+        console.error('Registration error:', error);
+        submitButton.innerHTML = originalContent;
+        submitButton.disabled = false;
+    }
+});
+</script>
+{% endblock %}

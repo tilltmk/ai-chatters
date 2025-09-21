@@ -1,0 +1,484 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="min-h-screen flex">
+    <div class="w-64 bg-dark-100 border-r border-dark-200">
+        <div class="p-6">
+            <h1 class="text-2xl font-bold gradient-text">AI Chatters</h1>
+        </div>
+        
+        <nav class="px-4 space-y-2">
+            <a href="/dashboard" class="flex items-center px-4 py-2 text-dark-500 hover:bg-dark-200 rounded-lg transition-colors">
+                <span class="mr-3">←</span>
+                <span>Zurück</span>
+            </a>
+        </nav>
+        
+        <div class="p-4">
+            <h3 class="text-sm font-semibold text-dark-400 mb-3">Teilnehmer</h3>
+            <div class="space-y-2">
+                {% for participant in conversation.participants|safe|list %}
+                <div class="flex items-center px-3 py-2 bg-dark-50 rounded-lg">
+                    <div class="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></div>
+                    <span class="text-dark-600 text-sm">{{ participant }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="flex-1 flex flex-col h-screen">
+        <div class="bg-dark-100 border-b border-dark-200 px-6 py-4">
+            <div class="flex justify-between items-start">
+                <div>
+                    <h2 class="text-xl font-bold text-dark-700">{{ conversation.title }}</h2>
+                    {% if conversation.topic %}
+                    <p class="text-dark-500 text-sm mt-1">Thema: {{ conversation.topic }}</p>
+                    {% endif %}
+                    <p class="text-dark-400 text-sm">{{ conversation.created_at }}</p>
+                </div>
+                <div class="flex items-center space-x-3">
+                    {% if conversation.auto_mode %}
+                    <span class="px-3 py-1 bg-purple-900 text-purple-300 rounded-lg text-sm">
+                        Auto-Modus
+                    </span>
+                    <button id="continueAutoBtn" onclick="continueAutoConversation()"
+                        class="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg text-sm font-medium hover:from-purple-700 hover:to-indigo-700 transition-all">
+                        Weiter
+                    </button>
+                    <button id="autoPlayBtn" onclick="toggleAutoPlay()"
+                        class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-all">
+                        ▶ Auto-Play
+                    </button>
+                    {% endif %}
+
+                    <!-- Export & Analysis Menu -->
+                    <div class="relative">
+                        <button id="toolsBtn" onclick="toggleToolsMenu()"
+                            class="px-4 py-2 bg-gray-600 text-white rounded-lg text-sm font-medium hover:bg-gray-700 transition-all">
+                            🛠️ Tools
+                        </button>
+                        <div id="toolsMenu" class="hidden absolute right-0 mt-2 w-56 bg-dark-100 border border-dark-200 rounded-lg shadow-lg z-50">
+                            <div class="py-2">
+                                <h3 class="px-4 py-2 text-xs font-semibold text-dark-400 uppercase tracking-wide">Export</h3>
+                                <button onclick="exportConversation('json')" class="w-full text-left px-4 py-2 text-sm text-dark-600 hover:bg-dark-200">📄 JSON Export</button>
+                                <button onclick="exportConversation('md')" class="w-full text-left px-4 py-2 text-sm text-dark-600 hover:bg-dark-200">📝 Markdown Export</button>
+                                <button onclick="exportConversation('txt')" class="w-full text-left px-4 py-2 text-sm text-dark-600 hover:bg-dark-200">📋 Text Export</button>
+
+                                <div class="border-t border-dark-200 my-2"></div>
+                                <h3 class="px-4 py-2 text-xs font-semibold text-dark-400 uppercase tracking-wide">Analyse</h3>
+                                <button onclick="analyzeContext()" class="w-full text-left px-4 py-2 text-sm text-dark-600 hover:bg-dark-200">📊 Kontext Analyse</button>
+                                <button onclick="generateNotes()" class="w-full text-left px-4 py-2 text-sm text-dark-600 hover:bg-dark-200">📝 Auto-Notizen</button>
+                                <button onclick="showNotes()" class="w-full text-left px-4 py-2 text-sm text-dark-600 hover:bg-dark-200">📑 Notizen anzeigen</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="messagesContainer" class="flex-1 overflow-y-auto p-6 space-y-4">
+            {% for message in messages %}
+            <div class="fade-in {{ 'ml-auto' if message.role == 'user' else '' }} max-w-3xl">
+                <div class="glass-effect rounded-lg p-4 {{ 'bg-purple-900 bg-opacity-30' if message.role == 'user' else '' }}">
+                    <div class="flex items-center mb-2">
+                        <span class="font-semibold text-dark-600 text-sm">
+                            {{ message.model }}
+                        </span>
+                        <span class="ml-2 text-dark-400 text-xs">
+                            {{ message.created_at }}
+                        </span>
+                    </div>
+                    <div class="text-dark-700 whitespace-pre-wrap">{{ message.content }}</div>
+                </div>
+            </div>
+            {% endfor %}
+            
+            <div id="typingIndicator" class="hidden">
+                <div class="flex space-x-2 p-4">
+                    <div class="w-2 h-2 bg-dark-400 rounded-full animate-bounce" style="animation-delay: 0ms"></div>
+                    <div class="w-2 h-2 bg-dark-400 rounded-full animate-bounce" style="animation-delay: 150ms"></div>
+                    <div class="w-2 h-2 bg-dark-400 rounded-full animate-bounce" style="animation-delay: 300ms"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="border-t border-dark-200 p-4">
+            <form id="messageForm" class="flex space-x-4">
+                <select id="senderModel" class="px-4 py-2 bg-dark-100 border border-dark-200 rounded-lg text-dark-700 focus:outline-none focus:ring-2 focus:ring-purple-600">
+                    <option value="">Wähle Absender...</option>
+                </select>
+                
+                <input type="text" id="messageInput" 
+                    class="flex-1 px-4 py-2 bg-dark-100 border border-dark-200 rounded-lg text-dark-700 placeholder-dark-400 focus:outline-none focus:ring-2 focus:ring-purple-600"
+                    placeholder="Nachricht eingeben...">
+                
+                <button type="submit"
+                    class="px-6 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg font-medium hover:from-purple-700 hover:to-indigo-700 transition-all duration-200">
+                    Senden
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+const conversationId = {{ conversation.id }};
+const participants = {{ conversation.participants|safe }};
+const isAutoMode = {{ 'true' if conversation.auto_mode else 'false' }};
+const maxTurns = {{ conversation.max_turns or 20 }};
+let currentTurn = {{ conversation.current_turn or 0 }};
+let isProcessing = false;
+let autoPlayInterval = null;
+
+async function loadSenderOptions() {
+    const senderSelect = document.getElementById('senderModel');
+    
+    for (const participant of participants) {
+        const option = document.createElement('option');
+        option.value = participant;
+        option.textContent = participant;
+        senderSelect.appendChild(option);
+    }
+    
+    if (participants.length > 0) {
+        senderSelect.value = participants[0];
+    }
+}
+
+function addMessage(model, content, role = 'assistant') {
+    const container = document.getElementById('messagesContainer');
+    const typingIndicator = document.getElementById('typingIndicator');
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `fade-in ${role === 'user' ? 'ml-auto' : ''} max-w-3xl`;
+    
+    const now = new Date().toLocaleString('de-DE');
+    
+    messageDiv.innerHTML = `
+        <div class="glass-effect rounded-lg p-4 ${role === 'user' ? 'bg-purple-900 bg-opacity-30' : ''}">
+            <div class="flex items-center mb-2">
+                <span class="font-semibold text-dark-600 text-sm">
+                    ${model}
+                </span>
+                <span class="ml-2 text-dark-400 text-xs">
+                    ${now}
+                </span>
+            </div>
+            <div class="text-dark-700 whitespace-pre-wrap">${content}</div>
+        </div>
+    `;
+    
+    container.insertBefore(messageDiv, typingIndicator);
+    container.scrollTop = container.scrollHeight;
+}
+
+document.getElementById('messageForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    if (isProcessing) return;
+    
+    const senderModel = document.getElementById('senderModel').value;
+    const messageInput = document.getElementById('messageInput');
+    const message = messageInput.value.trim();
+    
+    if (!senderModel || !message) {
+        showNotification('Bitte wählen Sie einen Absender und geben Sie eine Nachricht ein', 'error');
+        return;
+    }
+    
+    isProcessing = true;
+    messageInput.value = '';
+    
+    addMessage(senderModel, message, 'user');
+    
+    document.getElementById('typingIndicator').classList.remove('hidden');
+    
+    try {
+        const result = await apiCall(`/api/conversation/${conversationId}/message`, 'POST', {
+            model: senderModel,
+            content: message
+        });
+        
+        document.getElementById('typingIndicator').classList.add('hidden');
+        
+        for (const response of result.responses) {
+            addMessage(response.model, response.content);
+        }
+    } catch (error) {
+        document.getElementById('typingIndicator').classList.add('hidden');
+        showNotification('Fehler beim Senden der Nachricht', 'error');
+    } finally {
+        isProcessing = false;
+    }
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadSenderOptions();
+    
+    const container = document.getElementById('messagesContainer');
+    container.scrollTop = container.scrollHeight;
+});
+
+async function continueAutoConversation() {
+    if (isProcessing || currentTurn >= maxTurns) {
+        if (currentTurn >= maxTurns) {
+            showNotification(`Maximale Anzahl von ${maxTurns} Antworten erreicht`, 'info');
+        }
+        return;
+    }
+    
+    isProcessing = true;
+    document.getElementById('continueAutoBtn').disabled = true;
+    document.getElementById('typingIndicator').classList.remove('hidden');
+    
+    try {
+        const result = await apiCall(`/api/conversation/${conversationId}/auto-continue`, 'POST', {});
+        
+        document.getElementById('typingIndicator').classList.add('hidden');
+        
+        if (result.model && result.content) {
+            addMessage(result.model, result.content);
+            currentTurn = result.turn;
+        }
+    } catch (error) {
+        document.getElementById('typingIndicator').classList.add('hidden');
+        showNotification('Fehler beim Fortsetzen der Konversation', 'error');
+    } finally {
+        isProcessing = false;
+        document.getElementById('continueAutoBtn').disabled = false;
+    }
+}
+
+function toggleAutoPlay() {
+    const btn = document.getElementById('autoPlayBtn');
+    
+    if (autoPlayInterval) {
+        clearInterval(autoPlayInterval);
+        autoPlayInterval = null;
+        btn.textContent = '▶ Auto-Play';
+        btn.classList.remove('bg-red-600');
+        btn.classList.add('bg-green-600');
+    } else {
+        btn.textContent = '⏸ Stopp';
+        btn.classList.remove('bg-green-600');
+        btn.classList.add('bg-red-600');
+        
+        // Start immediately
+        continueAutoConversation();
+        
+        // Continue every 3 seconds
+        autoPlayInterval = setInterval(() => {
+            if (currentTurn < maxTurns && !isProcessing) {
+                continueAutoConversation();
+            } else if (currentTurn >= maxTurns) {
+                toggleAutoPlay();
+                showNotification('Konversation beendet - Maximale Anzahl erreicht', 'info');
+            }
+        }, 3000);
+    }
+}
+
+document.getElementById('messageInput').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        document.getElementById('messageForm').dispatchEvent(new Event('submit'));
+    }
+});
+
+// Auto-start if it's a new auto conversation with a topic
+if (isAutoMode && {{ 'true' if not messages else 'false' }}) {
+    setTimeout(() => {
+        continueAutoConversation();
+    }, 1000);
+}
+
+// Tools menu functionality
+function toggleToolsMenu() {
+    const menu = document.getElementById('toolsMenu');
+    menu.classList.toggle('hidden');
+}
+
+// Close menu when clicking outside
+document.addEventListener('click', (e) => {
+    const toolsBtn = document.getElementById('toolsBtn');
+    const toolsMenu = document.getElementById('toolsMenu');
+    if (!toolsBtn.contains(e.target) && !toolsMenu.contains(e.target)) {
+        toolsMenu.classList.add('hidden');
+    }
+});
+
+// Export functions
+async function exportConversation(format) {
+    try {
+        const response = await fetch(`/api/conversation/${conversationId}/export?format=${format}&metadata=true`);
+        const content = await response.text();
+
+        const blob = new Blob([content], {
+            type: format === 'json' ? 'application/json' :
+                 format === 'md' ? 'text/markdown' : 'text/plain'
+        });
+
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `conversation-${conversationId}.${format}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        showNotification(`Konversation als ${format.toUpperCase()} exportiert`, 'success');
+        document.getElementById('toolsMenu').classList.add('hidden');
+    } catch (error) {
+        showNotification('Export fehlgeschlagen', 'error');
+    }
+}
+
+// Context analysis
+async function analyzeContext() {
+    try {
+        const response = await fetch(`/api/conversation/${conversationId}/analyze-context`);
+        const analysis = await response.json();
+
+        showAnalysisModal(analysis);
+        document.getElementById('toolsMenu').classList.add('hidden');
+    } catch (error) {
+        showNotification('Kontext-Analyse fehlgeschlagen', 'error');
+    }
+}
+
+// Generate automatic notes
+async function generateNotes() {
+    try {
+        showNotification('Generiere automatische Notizen...', 'info');
+        const response = await apiCall(`/api/conversation/${conversationId}/generate-notes`, 'POST', {
+            model: 'anthropic:claude-3-haiku-20240307'
+        });
+
+        showNotification(`${response.total_notes} Notizen erfolgreich generiert`, 'success');
+        document.getElementById('toolsMenu').classList.add('hidden');
+    } catch (error) {
+        showNotification('Notizen-Generierung fehlgeschlagen', 'error');
+    }
+}
+
+// Show existing notes
+async function showNotes() {
+    try {
+        const response = await fetch(`/api/conversation/${conversationId}/notes`);
+        const notes = await response.json();
+
+        showNotesModal(notes);
+        document.getElementById('toolsMenu').classList.add('hidden');
+    } catch (error) {
+        showNotification('Fehler beim Laden der Notizen', 'error');
+    }
+}
+
+// Modal functions
+function showAnalysisModal(analysis) {
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+    modal.innerHTML = `
+        <div class="bg-dark-100 rounded-lg p-6 max-w-4xl max-h-[80vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-dark-700">Kontext Analyse</h2>
+                <button onclick="this.closest('.fixed').remove()" class="text-dark-500 hover:text-dark-700">✕</button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="space-y-4">
+                    <div class="bg-dark-50 p-4 rounded-lg">
+                        <h3 class="font-semibold text-dark-600 mb-2">Zusammenfassung</h3>
+                        <p class="text-sm text-dark-500">Nachrichten: ${analysis.summary.total_messages}</p>
+                        <p class="text-sm text-dark-500">Zeichen: ${analysis.summary.total_characters.toLocaleString()}</p>
+                        <p class="text-sm text-dark-500">Tokens (geschätzt): ${analysis.summary.estimated_tokens.toLocaleString()}</p>
+                        <p class="text-sm text-dark-500">Teilnehmer: ${analysis.summary.participants.join(', ')}</p>
+                    </div>
+
+                    <div class="bg-dark-50 p-4 rounded-lg">
+                        <h3 class="font-semibold text-dark-600 mb-2">Kontext-Gesundheit</h3>
+                        <div class="flex items-center mb-2">
+                            <span class="text-sm text-dark-500 mr-2">Status:</span>
+                            <span class="px-2 py-1 rounded text-xs ${analysis.context_health.status === 'healthy' ? 'bg-green-500 text-white' :
+                                                                     analysis.context_health.status === 'degraded' ? 'bg-yellow-500 text-black' : 'bg-red-500 text-white'}">
+                                ${analysis.context_health.status}
+                            </span>
+                        </div>
+                        <p class="text-sm text-dark-500">Token-Nutzung: ${analysis.context_health.token_usage_percentage.toFixed(1)}%</p>
+                        <p class="text-sm text-dark-500">Verbleibendes Fenster: ${analysis.context_health.estimated_context_window_remaining.toLocaleString()} tokens</p>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="bg-dark-50 p-4 rounded-lg">
+                        <h3 class="font-semibold text-dark-600 mb-2">Model-Beteiligung</h3>
+                        <div class="space-y-2">
+                            ${Object.entries(analysis.model_participation).map(([model, stats]) => `
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-dark-600">${model}</span>
+                                    <span class="text-dark-500">${stats.messages} Msg, ${stats.tokens_estimate} tokens</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    ${analysis.recommendations.length > 0 ? `
+                    <div class="bg-dark-50 p-4 rounded-lg mt-4">
+                        <h3 class="font-semibold text-dark-600 mb-2">Empfehlungen</h3>
+                        <div class="space-y-2">
+                            ${analysis.recommendations.map(rec => `
+                                <div class="flex items-start">
+                                    <span class="px-2 py-1 rounded text-xs mr-2 ${rec.type === 'critical' ? 'bg-red-500 text-white' :
+                                                                                  rec.type === 'warning' ? 'bg-yellow-500 text-black' : 'bg-blue-500 text-white'}">
+                                        ${rec.type}
+                                    </span>
+                                    <span class="text-sm text-dark-600">${rec.message}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    ` : ''}
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+function showNotesModal(notes) {
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+    modal.innerHTML = `
+        <div class="bg-dark-100 rounded-lg p-6 max-w-4xl max-h-[80vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-dark-700">Konversations-Notizen</h2>
+                <button onclick="this.closest('.fixed').remove()" class="text-dark-500 hover:text-dark-700">✕</button>
+            </div>
+
+            ${notes.length === 0 ? `
+                <p class="text-dark-500 text-center py-8">Keine Notizen vorhanden. Erstelle welche mit "Auto-Notizen".</p>
+            ` : `
+                <div class="space-y-4">
+                    ${notes.map(note => `
+                        <div class="bg-dark-50 p-4 rounded-lg">
+                            <div class="flex justify-between items-start mb-2">
+                                <h3 class="font-semibold text-dark-600">${note.title}</h3>
+                                <div class="flex items-center space-x-2">
+                                    <span class="px-2 py-1 bg-purple-500 text-white rounded text-xs">${note.type}</span>
+                                    <span class="text-xs text-dark-400">${note.created_at}</span>
+                                </div>
+                            </div>
+                            <div class="text-sm text-dark-700 whitespace-pre-wrap">${note.content}</div>
+                            ${note.model_generated ? `<p class="text-xs text-dark-400 mt-2">Generiert von: ${note.model_generated}</p>` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            `}
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+</script>
+{% endblock %}
