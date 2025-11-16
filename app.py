@@ -10,6 +10,7 @@ import os
 from functools import wraps
 import anthropic
 import openai
+import time
 from translations import get_translation, get_all_translations
 
 app = Flask(__name__)
@@ -85,6 +86,23 @@ def init_db():
                 model_generated TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (conversation_id) REFERENCES conversations (id)
+            );
+
+            CREATE TABLE IF NOT EXISTS benchmark_results (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                model_name TEXT NOT NULL,
+                test_type TEXT NOT NULL,
+                prompt_tokens INTEGER,
+                completion_tokens INTEGER,
+                total_tokens INTEGER,
+                time_to_first_token REAL,
+                total_time REAL,
+                tokens_per_second REAL,
+                prompt_text TEXT,
+                response_text TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id)
             );
         ''')
         db.commit()
@@ -1020,17 +1038,253 @@ def get_conversation_notes(conversation_id):
 
     return jsonify(notes_list), 200
 
+@app.route('/benchmark')
+@login_required
+def benchmark():
+    lang = get_user_language()
+    return render_template('benchmark.html',
+                         t=get_all_translations(lang),
+                         lang=lang)
+
+@app.route('/api/benchmark/ollama-models', methods=['GET'])
+@login_required
+def get_ollama_models_for_benchmark():
+    """Get available Ollama models with their details for benchmarking."""
+    db = get_db()
+    api_key_row = db.execute('''
+        SELECT api_key FROM api_keys
+        WHERE user_id = ? AND service = ?
+    ''', (current_user.id, 'ollama')).fetchone()
+
+    if not api_key_row:
+        return jsonify({'error': 'Ollama not configured'}), 400
+
+    try:
+        response = requests.get('http://localhost:11434/api/tags')
+        if response.status_code == 200:
+            models = response.json().get('models', [])
+            model_list = []
+            for model in models:
+                model_info = {
+                    'name': model['name'],
+                    'size': model.get('size', 0),
+                    'modified_at': model.get('modified_at', ''),
+                    'digest': model.get('digest', '')[:12] if model.get('digest') else '',
+                    'details': model.get('details', {})
+                }
+                model_list.append(model_info)
+            return jsonify({'models': model_list}), 200
+        else:
+            return jsonify({'error': 'Failed to fetch models'}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/benchmark/run', methods=['POST'])
+@login_required
+def run_benchmark():
+    """Run a benchmark test on an Ollama model."""
+    data = request.get_json()
+    model_name = data.get('model')
+    test_type = data.get('test_type', 'simple')
+    custom_prompt = data.get('prompt', '')
+
+    if not model_name:
+        return jsonify({'error': 'Model name required'}), 400
+
+    # Define test prompts based on test type
+    test_prompts = {
+        'simple': 'What is 2+2? Answer with just the number.',
+        'medium': 'Explain the concept of recursion in programming in 3 sentences.',
+        'complex': 'Write a Python function that implements binary search on a sorted list. Include comments explaining each step.',
+        'creative': 'Write a short poem (4 lines) about artificial intelligence.',
+        'reasoning': 'If all roses are flowers and some flowers fade quickly, can we conclude that some roses fade quickly? Explain your reasoning step by step.',
+        'code': 'Write a function in JavaScript that reverses a string without using the built-in reverse method.',
+        'math': 'Solve the following: A train travels 120 km in 2 hours. What is its average speed? Show your calculation.',
+        'custom': custom_prompt if custom_prompt else 'Hello, please respond with a brief greeting.'
+    }
+
+    prompt = test_prompts.get(test_type, test_prompts['simple'])
+
+    try:
+        # Measure time to first token and total time
+        start_time = time.time()
+
+        # Use streaming to measure time to first token
+        response = requests.post('http://localhost:11434/api/generate', json={
+            'model': model_name,
+            'prompt': prompt,
+            'stream': True
+        }, stream=True)
+
+        if response.status_code != 200:
+            return jsonify({'error': f'Model request failed: {response.status_code}'}), 500
+
+        first_token_time = None
+        full_response = ''
+        eval_count = 0
+        eval_duration = 0
+        prompt_eval_count = 0
+
+        for line in response.iter_lines():
+            if line:
+                try:
+                    chunk = json.loads(line)
+                    if first_token_time is None and chunk.get('response'):
+                        first_token_time = time.time() - start_time
+
+                    full_response += chunk.get('response', '')
+
+                    # Get final statistics
+                    if chunk.get('done'):
+                        eval_count = chunk.get('eval_count', 0)
+                        eval_duration = chunk.get('eval_duration', 0)
+                        prompt_eval_count = chunk.get('prompt_eval_count', 0)
+                except json.JSONDecodeError:
+                    continue
+
+        total_time = time.time() - start_time
+
+        # Calculate tokens per second
+        tokens_per_second = 0
+        if eval_duration > 0:
+            # eval_duration is in nanoseconds
+            tokens_per_second = eval_count / (eval_duration / 1e9)
+        elif total_time > 0 and eval_count > 0:
+            tokens_per_second = eval_count / total_time
+
+        # Estimate prompt tokens (rough estimation)
+        prompt_tokens = prompt_eval_count if prompt_eval_count > 0 else len(prompt.split()) * 1.3
+
+        # Save benchmark result to database
+        db = get_db()
+        cursor = db.execute('''
+            INSERT INTO benchmark_results
+            (user_id, model_name, test_type, prompt_tokens, completion_tokens, total_tokens,
+             time_to_first_token, total_time, tokens_per_second, prompt_text, response_text)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (current_user.id, model_name, test_type, int(prompt_tokens), eval_count,
+              int(prompt_tokens) + eval_count, first_token_time or 0, total_time,
+              tokens_per_second, prompt, full_response))
+        db.commit()
+
+        result = {
+            'id': cursor.lastrowid,
+            'model': model_name,
+            'test_type': test_type,
+            'prompt_tokens': int(prompt_tokens),
+            'completion_tokens': eval_count,
+            'total_tokens': int(prompt_tokens) + eval_count,
+            'time_to_first_token': round(first_token_time or 0, 4),
+            'total_time': round(total_time, 4),
+            'tokens_per_second': round(tokens_per_second, 2),
+            'prompt': prompt,
+            'response': full_response
+        }
+
+        return jsonify(result), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/benchmark/results', methods=['GET'])
+@login_required
+def get_benchmark_results():
+    """Get benchmark history for the current user."""
+    db = get_db()
+
+    limit = request.args.get('limit', 50, type=int)
+    model_filter = request.args.get('model', None)
+
+    if model_filter:
+        results = db.execute('''
+            SELECT * FROM benchmark_results
+            WHERE user_id = ? AND model_name = ?
+            ORDER BY created_at DESC
+            LIMIT ?
+        ''', (current_user.id, model_filter, limit)).fetchall()
+    else:
+        results = db.execute('''
+            SELECT * FROM benchmark_results
+            WHERE user_id = ?
+            ORDER BY created_at DESC
+            LIMIT ?
+        ''', (current_user.id, limit)).fetchall()
+
+    results_list = []
+    for result in results:
+        results_list.append({
+            'id': result['id'],
+            'model_name': result['model_name'],
+            'test_type': result['test_type'],
+            'prompt_tokens': result['prompt_tokens'],
+            'completion_tokens': result['completion_tokens'],
+            'total_tokens': result['total_tokens'],
+            'time_to_first_token': result['time_to_first_token'],
+            'total_time': result['total_time'],
+            'tokens_per_second': result['tokens_per_second'],
+            'created_at': result['created_at']
+        })
+
+    return jsonify(results_list), 200
+
+@app.route('/api/benchmark/compare', methods=['GET'])
+@login_required
+def compare_benchmarks():
+    """Compare benchmark results across different models."""
+    db = get_db()
+
+    # Get aggregated stats per model
+    stats = db.execute('''
+        SELECT
+            model_name,
+            COUNT(*) as test_count,
+            AVG(tokens_per_second) as avg_tokens_per_second,
+            AVG(time_to_first_token) as avg_time_to_first_token,
+            AVG(total_time) as avg_total_time,
+            MIN(tokens_per_second) as min_tokens_per_second,
+            MAX(tokens_per_second) as max_tokens_per_second,
+            AVG(completion_tokens) as avg_completion_tokens
+        FROM benchmark_results
+        WHERE user_id = ?
+        GROUP BY model_name
+        ORDER BY avg_tokens_per_second DESC
+    ''', (current_user.id,)).fetchall()
+
+    comparison = []
+    for stat in stats:
+        comparison.append({
+            'model_name': stat['model_name'],
+            'test_count': stat['test_count'],
+            'avg_tokens_per_second': round(stat['avg_tokens_per_second'], 2),
+            'avg_time_to_first_token': round(stat['avg_time_to_first_token'], 4),
+            'avg_total_time': round(stat['avg_total_time'], 4),
+            'min_tokens_per_second': round(stat['min_tokens_per_second'], 2),
+            'max_tokens_per_second': round(stat['max_tokens_per_second'], 2),
+            'avg_completion_tokens': round(stat['avg_completion_tokens'], 0)
+        })
+
+    return jsonify(comparison), 200
+
+@app.route('/api/benchmark/clear', methods=['DELETE'])
+@login_required
+def clear_benchmark_results():
+    """Clear all benchmark results for the current user."""
+    db = get_db()
+    db.execute('DELETE FROM benchmark_results WHERE user_id = ?', (current_user.id,))
+    db.commit()
+    return jsonify({'success': True}), 200
+
 @app.route('/api/models', methods=['GET'])
 @login_required
 def get_available_models():
     db = get_db()
     api_keys = db.execute('''
-        SELECT service, api_key FROM api_keys 
+        SELECT service, api_key FROM api_keys
         WHERE user_id = ?
     ''', (current_user.id,)).fetchall()
-    
+
     available_models = []
-    
+
     for key in api_keys:
         if key['service'] == 'ollama':
             try:
@@ -1045,7 +1299,7 @@ def get_available_models():
                         })
             except:
                 pass
-        
+
         elif key['service'] == 'openai':
             try:
                 client = openai.OpenAI(api_key=key['api_key'])

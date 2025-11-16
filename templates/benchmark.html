@@ -1,0 +1,545 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t.benchmark_title }} - AI Chatters{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
+    <!-- Navigation -->
+    <nav class="glass-panel border-b border-white/5">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center space-x-8">
+                    <h1 class="text-xl font-serif font-bold text-gradient">AI Chatters</h1>
+                    <a href="{{ url_for('dashboard') }}" class="text-gray-400 hover:text-white transition-colors">{{ t.conversations }}</a>
+                    <a href="{{ url_for('benchmark') }}" class="text-white font-medium">{{ t.benchmark }}</a>
+                    <a href="{{ url_for('settings') }}" class="text-gray-400 hover:text-white transition-colors">{{ t.settings }}</a>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span class="text-gray-400 text-sm">{{ current_user.username }}</span>
+                    <a href="{{ url_for('logout') }}" class="text-gray-400 hover:text-white transition-colors text-sm">{{ t.logout }}</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Header -->
+        <div class="mb-8">
+            <h2 class="text-3xl font-serif font-bold text-white mb-2">{{ t.benchmark_title }}</h2>
+            <p class="text-gray-400">{{ t.benchmark_description }}</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Left Column: Model Selection & Test Configuration -->
+            <div class="lg:col-span-1 space-y-6">
+                <!-- Available Models -->
+                <div class="glass-panel rounded-xl p-6">
+                    <h3 class="text-lg font-semibold text-white mb-4">{{ t.available_models }}</h3>
+                    <div id="modelsList" class="space-y-2">
+                        <div class="skeleton h-12 rounded-lg"></div>
+                        <div class="skeleton h-12 rounded-lg"></div>
+                        <div class="skeleton h-12 rounded-lg"></div>
+                    </div>
+                </div>
+
+                <!-- Test Configuration -->
+                <div class="glass-panel rounded-xl p-6">
+                    <h3 class="text-lg font-semibold text-white mb-4">{{ t.test_configuration }}</h3>
+
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">{{ t.test_type }}</label>
+                            <select id="testType" class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                                <option value="simple">{{ t.test_simple }}</option>
+                                <option value="medium">{{ t.test_medium }}</option>
+                                <option value="complex">{{ t.test_complex }}</option>
+                                <option value="creative">{{ t.test_creative }}</option>
+                                <option value="reasoning">{{ t.test_reasoning }}</option>
+                                <option value="code">{{ t.test_code }}</option>
+                                <option value="math">{{ t.test_math }}</option>
+                                <option value="custom">{{ t.test_custom }}</option>
+                            </select>
+                        </div>
+
+                        <div id="customPromptContainer" class="hidden">
+                            <label class="block text-sm font-medium text-gray-300 mb-2">{{ t.custom_prompt }}</label>
+                            <textarea id="customPrompt" rows="4" class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none" placeholder="{{ t.enter_custom_prompt }}"></textarea>
+                        </div>
+
+                        <button id="runBenchmarkBtn" class="w-full btn-primary text-white font-medium py-3 px-6 rounded-lg transition-all hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100">
+                            {{ t.run_benchmark }}
+                        </button>
+
+                        <button id="runAllBtn" class="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-white font-medium py-3 px-6 rounded-lg transition-all">
+                            {{ t.run_all_models }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Middle Column: Current Test Results -->
+            <div class="lg:col-span-2 space-y-6">
+                <!-- Current Test Result -->
+                <div class="glass-panel rounded-xl p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-semibold text-white">{{ t.current_test_result }}</h3>
+                        <div id="testStatus" class="hidden">
+                            <span class="flex items-center text-yellow-400">
+                                <svg class="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                {{ t.running_test }}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div id="currentResultContainer">
+                        <div class="text-center py-12 text-gray-500">
+                            <svg class="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                            </svg>
+                            <p>{{ t.no_test_run_yet }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Model Comparison Chart -->
+                <div class="glass-panel rounded-xl p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-semibold text-white">{{ t.model_comparison }}</h3>
+                        <button id="clearResultsBtn" class="text-sm text-red-400 hover:text-red-300 transition-colors">
+                            {{ t.clear_results }}
+                        </button>
+                    </div>
+
+                    <div id="comparisonContainer">
+                        <div class="text-center py-8 text-gray-500">
+                            <p>{{ t.no_comparison_data }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Benchmark History -->
+                <div class="glass-panel rounded-xl p-6">
+                    <h3 class="text-lg font-semibold text-white mb-4">{{ t.benchmark_history }}</h3>
+                    <div id="historyContainer" class="space-y-3 max-h-96 overflow-y-auto">
+                        <div class="text-center py-8 text-gray-500">
+                            <p>{{ t.no_history_yet }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let selectedModels = new Set();
+    let availableModels = [];
+    let isRunning = false;
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+        loadOllamaModels();
+        loadComparisonData();
+        loadBenchmarkHistory();
+
+        // Show/hide custom prompt field
+        document.getElementById('testType').addEventListener('change', (e) => {
+            const customContainer = document.getElementById('customPromptContainer');
+            if (e.target.value === 'custom') {
+                customContainer.classList.remove('hidden');
+            } else {
+                customContainer.classList.add('hidden');
+            }
+        });
+
+        document.getElementById('runBenchmarkBtn').addEventListener('click', runSelectedBenchmark);
+        document.getElementById('runAllBtn').addEventListener('click', runAllModelsBenchmark);
+        document.getElementById('clearResultsBtn').addEventListener('click', clearAllResults);
+    });
+
+    async function loadOllamaModels() {
+        try {
+            const response = await fetch('/api/benchmark/ollama-models');
+            const data = await response.json();
+
+            if (data.error) {
+                showNotification(data.error, 'error');
+                document.getElementById('modelsList').innerHTML = `
+                    <div class="text-center py-4 text-gray-500">
+                        <p>{{ t.ollama_not_configured }}</p>
+                        <a href="{{ url_for('settings') }}" class="text-purple-400 hover:text-purple-300 text-sm">{{ t.configure_ollama }}</a>
+                    </div>
+                `;
+                return;
+            }
+
+            availableModels = data.models;
+            renderModelsList();
+        } catch (error) {
+            showNotification('{{ t.error_loading_models }}', 'error');
+        }
+    }
+
+    function renderModelsList() {
+        const container = document.getElementById('modelsList');
+
+        if (availableModels.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-4 text-gray-500">
+                    <p>{{ t.no_ollama_models }}</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = availableModels.map(model => `
+            <div class="model-item glass-panel-light rounded-lg p-3 cursor-pointer transition-all hover:bg-white/10 ${selectedModels.has(model.name) ? 'ring-2 ring-purple-500 bg-purple-500/10' : ''}"
+                 onclick="toggleModelSelection('${model.name}')">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h4 class="font-medium text-white">${model.name}</h4>
+                        <p class="text-xs text-gray-400 mt-1">${formatBytes(model.size)}</p>
+                    </div>
+                    <div class="flex items-center">
+                        ${selectedModels.has(model.name) ?
+                            '<svg class="w-5 h-5 text-purple-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>' :
+                            '<div class="w-5 h-5 border border-gray-600 rounded"></div>'
+                        }
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function toggleModelSelection(modelName) {
+        if (selectedModels.has(modelName)) {
+            selectedModels.delete(modelName);
+        } else {
+            selectedModels.add(modelName);
+        }
+        renderModelsList();
+    }
+
+    function formatBytes(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    async function runSelectedBenchmark() {
+        if (selectedModels.size === 0) {
+            showNotification('{{ t.select_model_first }}', 'warning');
+            return;
+        }
+
+        if (isRunning) return;
+
+        const testType = document.getElementById('testType').value;
+        const customPrompt = document.getElementById('customPrompt').value;
+
+        isRunning = true;
+        document.getElementById('testStatus').classList.remove('hidden');
+        document.getElementById('runBenchmarkBtn').disabled = true;
+        document.getElementById('runAllBtn').disabled = true;
+
+        const results = [];
+
+        for (const modelName of selectedModels) {
+            try {
+                const result = await runSingleBenchmark(modelName, testType, customPrompt);
+                results.push(result);
+                displayCurrentResult(result);
+            } catch (error) {
+                showNotification(`{{ t.error_testing }} ${modelName}: ${error.message}`, 'error');
+            }
+        }
+
+        isRunning = false;
+        document.getElementById('testStatus').classList.add('hidden');
+        document.getElementById('runBenchmarkBtn').disabled = false;
+        document.getElementById('runAllBtn').disabled = false;
+
+        loadComparisonData();
+        loadBenchmarkHistory();
+
+        if (results.length > 0) {
+            showNotification(`{{ t.benchmark_completed }} ${results.length} {{ t.models_tested }}`, 'success');
+        }
+    }
+
+    async function runAllModelsBenchmark() {
+        if (availableModels.length === 0) {
+            showNotification('{{ t.no_models_available }}', 'warning');
+            return;
+        }
+
+        if (isRunning) return;
+
+        const testType = document.getElementById('testType').value;
+        const customPrompt = document.getElementById('customPrompt').value;
+
+        isRunning = true;
+        document.getElementById('testStatus').classList.remove('hidden');
+        document.getElementById('runBenchmarkBtn').disabled = true;
+        document.getElementById('runAllBtn').disabled = true;
+
+        const results = [];
+
+        for (const model of availableModels) {
+            try {
+                showNotification(`{{ t.testing_model }} ${model.name}...`, 'info', 2000);
+                const result = await runSingleBenchmark(model.name, testType, customPrompt);
+                results.push(result);
+                displayCurrentResult(result);
+            } catch (error) {
+                showNotification(`{{ t.error_testing }} ${model.name}: ${error.message}`, 'error');
+            }
+        }
+
+        isRunning = false;
+        document.getElementById('testStatus').classList.add('hidden');
+        document.getElementById('runBenchmarkBtn').disabled = false;
+        document.getElementById('runAllBtn').disabled = false;
+
+        loadComparisonData();
+        loadBenchmarkHistory();
+
+        if (results.length > 0) {
+            showNotification(`{{ t.benchmark_completed }} ${results.length} {{ t.models_tested }}`, 'success');
+        }
+    }
+
+    async function runSingleBenchmark(modelName, testType, customPrompt = '') {
+        const response = await fetch('/api/benchmark/run', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model: modelName,
+                test_type: testType,
+                prompt: customPrompt
+            })
+        });
+
+        const data = await response.json();
+        if (data.error) {
+            throw new Error(data.error);
+        }
+        return data;
+    }
+
+    function displayCurrentResult(result) {
+        const container = document.getElementById('currentResultContainer');
+
+        container.innerHTML = `
+            <div class="space-y-6">
+                <!-- Model Info -->
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h4 class="text-xl font-semibold text-white">${result.model}</h4>
+                        <p class="text-sm text-gray-400">{{ t.test_type }}: ${getTestTypeLabel(result.test_type)}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-2xl font-bold text-gradient">${result.tokens_per_second}</p>
+                        <p class="text-sm text-gray-400">{{ t.tokens_per_second }}</p>
+                    </div>
+                </div>
+
+                <!-- Metrics Grid -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="glass-panel-light rounded-lg p-4 text-center">
+                        <p class="text-2xl font-bold text-blue-400">${result.time_to_first_token}s</p>
+                        <p class="text-xs text-gray-400 mt-1">{{ t.time_to_first_token }}</p>
+                    </div>
+                    <div class="glass-panel-light rounded-lg p-4 text-center">
+                        <p class="text-2xl font-bold text-green-400">${result.total_time}s</p>
+                        <p class="text-xs text-gray-400 mt-1">{{ t.total_time }}</p>
+                    </div>
+                    <div class="glass-panel-light rounded-lg p-4 text-center">
+                        <p class="text-2xl font-bold text-yellow-400">${result.completion_tokens}</p>
+                        <p class="text-xs text-gray-400 mt-1">{{ t.completion_tokens }}</p>
+                    </div>
+                    <div class="glass-panel-light rounded-lg p-4 text-center">
+                        <p class="text-2xl font-bold text-purple-400">${result.total_tokens}</p>
+                        <p class="text-xs text-gray-400 mt-1">{{ t.total_tokens }}</p>
+                    </div>
+                </div>
+
+                <!-- Prompt & Response -->
+                <div class="space-y-4">
+                    <div>
+                        <h5 class="text-sm font-medium text-gray-300 mb-2">{{ t.prompt }}</h5>
+                        <div class="glass-panel-light rounded-lg p-3 text-sm text-gray-300 font-mono">
+                            ${escapeHtml(result.prompt)}
+                        </div>
+                    </div>
+                    <div>
+                        <h5 class="text-sm font-medium text-gray-300 mb-2">{{ t.response }}</h5>
+                        <div class="glass-panel-light rounded-lg p-3 text-sm text-gray-300 max-h-48 overflow-y-auto">
+                            <div class="prose prose-invert prose-sm max-w-none">
+                                ${marked.parse(result.response)}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function getTestTypeLabel(testType) {
+        const labels = {
+            'simple': '{{ t.test_simple }}',
+            'medium': '{{ t.test_medium }}',
+            'complex': '{{ t.test_complex }}',
+            'creative': '{{ t.test_creative }}',
+            'reasoning': '{{ t.test_reasoning }}',
+            'code': '{{ t.test_code }}',
+            'math': '{{ t.test_math }}',
+            'custom': '{{ t.test_custom }}'
+        };
+        return labels[testType] || testType;
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    async function loadComparisonData() {
+        try {
+            const response = await fetch('/api/benchmark/compare');
+            const data = await response.json();
+
+            if (data.length === 0) {
+                document.getElementById('comparisonContainer').innerHTML = `
+                    <div class="text-center py-8 text-gray-500">
+                        <p>{{ t.no_comparison_data }}</p>
+                    </div>
+                `;
+                return;
+            }
+
+            renderComparisonChart(data);
+        } catch (error) {
+            console.error('Error loading comparison data:', error);
+        }
+    }
+
+    function renderComparisonChart(data) {
+        const container = document.getElementById('comparisonContainer');
+        const maxTPS = Math.max(...data.map(d => d.max_tokens_per_second));
+
+        container.innerHTML = `
+            <div class="space-y-4">
+                ${data.map(model => `
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm font-medium text-white">${model.model_name}</span>
+                            <span class="text-sm text-gray-400">${model.avg_tokens_per_second} tok/s</span>
+                        </div>
+                        <div class="relative">
+                            <div class="h-6 bg-white/5 rounded-full overflow-hidden">
+                                <div class="h-full bg-gradient-to-r from-purple-600 to-blue-600 rounded-full transition-all duration-500 flex items-center justify-end pr-2"
+                                     style="width: ${(model.avg_tokens_per_second / maxTPS) * 100}%">
+                                    <span class="text-xs text-white font-medium">${model.test_count} {{ t.tests }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex justify-between text-xs text-gray-500">
+                            <span>{{ t.min }}: ${model.min_tokens_per_second} tok/s</span>
+                            <span>{{ t.avg_time }}: ${model.avg_total_time}s</span>
+                            <span>{{ t.max }}: ${model.max_tokens_per_second} tok/s</span>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    async function loadBenchmarkHistory() {
+        try {
+            const response = await fetch('/api/benchmark/results?limit=20');
+            const data = await response.json();
+
+            if (data.length === 0) {
+                document.getElementById('historyContainer').innerHTML = `
+                    <div class="text-center py-8 text-gray-500">
+                        <p>{{ t.no_history_yet }}</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const container = document.getElementById('historyContainer');
+            container.innerHTML = data.map(result => `
+                <div class="glass-panel-light rounded-lg p-3">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h5 class="font-medium text-white">${result.model_name}</h5>
+                            <p class="text-xs text-gray-400">${getTestTypeLabel(result.test_type)}</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-sm font-semibold text-purple-400">${result.tokens_per_second} tok/s</p>
+                            <p class="text-xs text-gray-500">${formatDate(result.created_at)}</p>
+                        </div>
+                    </div>
+                    <div class="mt-2 grid grid-cols-3 gap-2 text-xs">
+                        <div class="text-center">
+                            <p class="text-gray-400">{{ t.ttft_short }}</p>
+                            <p class="text-white">${result.time_to_first_token}s</p>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-gray-400">{{ t.total_short }}</p>
+                            <p class="text-white">${result.total_time}s</p>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-gray-400">{{ t.tokens_short }}</p>
+                            <p class="text-white">${result.total_tokens}</p>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        } catch (error) {
+            console.error('Error loading history:', error);
+        }
+    }
+
+    function formatDate(dateString) {
+        const date = new Date(dateString);
+        return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    }
+
+    async function clearAllResults() {
+        if (!confirm('{{ t.confirm_clear_results }}')) return;
+
+        try {
+            const response = await fetch('/api/benchmark/clear', { method: 'DELETE' });
+            const data = await response.json();
+
+            if (data.success) {
+                showNotification('{{ t.results_cleared }}', 'success');
+                loadComparisonData();
+                loadBenchmarkHistory();
+                document.getElementById('currentResultContainer').innerHTML = `
+                    <div class="text-center py-12 text-gray-500">
+                        <svg class="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                        </svg>
+                        <p>{{ t.no_test_run_yet }}</p>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            showNotification('{{ t.error_clearing_results }}', 'error');
+        }
+    }
+</script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+{% endblock %}
