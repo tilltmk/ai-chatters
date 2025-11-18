@@ -86,6 +86,50 @@ def init_db():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (conversation_id) REFERENCES conversations (id)
             );
+
+            CREATE TABLE IF NOT EXISTS benchmark_sessions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                models TEXT NOT NULL,
+                total_questions INTEGER DEFAULT 0,
+                completed_questions INTEGER DEFAULT 0,
+                status TEXT DEFAULT 'active',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                completed_at TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id)
+            );
+
+            CREATE TABLE IF NOT EXISTS benchmark_questions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                category TEXT NOT NULL,
+                question TEXT NOT NULL,
+                difficulty TEXT DEFAULT 'medium',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS benchmark_responses (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id INTEGER NOT NULL,
+                question_id INTEGER NOT NULL,
+                model TEXT NOT NULL,
+                response TEXT NOT NULL,
+                response_time REAL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (session_id) REFERENCES benchmark_sessions (id),
+                FOREIGN KEY (question_id) REFERENCES benchmark_questions (id)
+            );
+
+            CREATE TABLE IF NOT EXISTS benchmark_ratings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id INTEGER NOT NULL,
+                question_id INTEGER NOT NULL,
+                selected_response_id INTEGER NOT NULL,
+                rating_value INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (session_id) REFERENCES benchmark_sessions (id),
+                FOREIGN KEY (question_id) REFERENCES benchmark_questions (id),
+                FOREIGN KEY (selected_response_id) REFERENCES benchmark_responses (id)
+            );
         ''')
         db.commit()
 
@@ -1137,6 +1181,380 @@ def get_available_models():
                 })
 
     return jsonify(available_models)
+
+# Benchmarking System Routes
+@app.route('/benchmark')
+@login_required
+def benchmark():
+    """Main benchmarking page."""
+    lang = get_user_language()
+    return render_template('benchmark.html',
+                         t=get_all_translations(lang),
+                         lang=lang)
+
+@app.route('/api/benchmark/init-questions', methods=['POST'])
+@login_required
+def init_benchmark_questions():
+    """Initialize the question pool for benchmarking."""
+    db = get_db()
+
+    # Check if questions already exist
+    existing = db.execute('SELECT COUNT(*) as count FROM benchmark_questions').fetchone()
+    if existing['count'] > 0:
+        return jsonify({'success': True, 'message': 'Questions already initialized'}), 200
+
+    # Question categories with diverse questions
+    questions = [
+        # Kreativität & Storytelling
+        {'category': 'Kreativität', 'question': 'Schreibe eine kurze Geschichte über einen Roboter, der zum ersten Mal Musik hört.', 'difficulty': 'medium'},
+        {'category': 'Kreativität', 'question': 'Erfinde ein neues Wort und erkläre seine Bedeutung mit einem praktischen Beispiel.', 'difficulty': 'easy'},
+        {'category': 'Kreativität', 'question': 'Beschreibe einen Sonnenuntergang aus der Perspektive eines Malers.', 'difficulty': 'medium'},
+
+        # Logik & Problemlösung
+        {'category': 'Logik', 'question': 'Wenn 5 Maschinen 5 Minuten brauchen, um 5 Produkte herzustellen, wie lange brauchen 100 Maschinen für 100 Produkte?', 'difficulty': 'medium'},
+        {'category': 'Logik', 'question': 'Ein Bauer hat 17 Schafe. Alle bis auf 9 sterben. Wie viele bleiben übrig?', 'difficulty': 'easy'},
+        {'category': 'Logik', 'question': 'Du hast 3 Türen: hinter einer ist ein Preis, hinter den anderen Ziegen. Du wählst Tür 1. Der Moderator öffnet Tür 3 (Ziege). Solltest du wechseln?', 'difficulty': 'hard'},
+
+        # Wissen & Fakten
+        {'category': 'Wissen', 'question': 'Erkläre in einfachen Worten, wie künstliche neuronale Netze funktionieren.', 'difficulty': 'medium'},
+        {'category': 'Wissen', 'question': 'Was ist der Unterschied zwischen Machine Learning und Deep Learning?', 'difficulty': 'easy'},
+        {'category': 'Wissen', 'question': 'Beschreibe die wichtigsten Prinzipien der Quantenmechanik für Einsteiger.', 'difficulty': 'hard'},
+
+        # Programmierung
+        {'category': 'Code', 'question': 'Schreibe eine Python-Funktion, die prüft, ob ein String ein Palindrom ist.', 'difficulty': 'easy'},
+        {'category': 'Code', 'question': 'Erkläre den Unterschied zwischen einer Liste und einem Tupel in Python.', 'difficulty': 'easy'},
+        {'category': 'Code', 'question': 'Wie würdest du einen einfachen Caching-Mechanismus in Python implementieren?', 'difficulty': 'medium'},
+
+        # Ethik & Philosophie
+        {'category': 'Ethik', 'question': 'Sollten KI-Systeme die Möglichkeit haben, ethische Entscheidungen selbst zu treffen?', 'difficulty': 'hard'},
+        {'category': 'Ethik', 'question': 'Was bedeutet "fair" im Kontext von maschinellem Lernen?', 'difficulty': 'medium'},
+        {'category': 'Ethik', 'question': 'Wie kann man Bias in KI-Systemen verhindern?', 'difficulty': 'medium'},
+
+        # Allgemeinwissen
+        {'category': 'Allgemein', 'question': 'Erkläre den Klimawandel in drei Sätzen.', 'difficulty': 'easy'},
+        {'category': 'Allgemein', 'question': 'Was sind die Hauptunterschiede zwischen erneuerbaren und nicht-erneuerbaren Energien?', 'difficulty': 'easy'},
+        {'category': 'Allgemein', 'question': 'Beschreibe die Funktionsweise des Internets in einfachen Worten.', 'difficulty': 'medium'},
+
+        # Mathematik
+        {'category': 'Mathematik', 'question': 'Erkläre den Satz des Pythagoras mit einem praktischen Beispiel.', 'difficulty': 'easy'},
+        {'category': 'Mathematik', 'question': 'Was ist eine Fibonacci-Folge und wo findet man sie in der Natur?', 'difficulty': 'medium'},
+        {'category': 'Mathematik', 'question': 'Wie berechnet man die Wahrscheinlichkeit von unabhängigen Ereignissen?', 'difficulty': 'medium'},
+    ]
+
+    for q in questions:
+        db.execute('''
+            INSERT INTO benchmark_questions (category, question, difficulty)
+            VALUES (?, ?, ?)
+        ''', (q['category'], q['question'], q['difficulty']))
+
+    db.commit()
+    return jsonify({'success': True, 'count': len(questions)}), 200
+
+@app.route('/api/benchmark/start', methods=['POST'])
+@login_required
+def start_benchmark():
+    """Start a new benchmarking session."""
+    data = request.get_json()
+    models = data.get('models', [])
+    num_questions = data.get('num_questions', 5)
+
+    if len(models) < 2:
+        return jsonify({'error': 'Mindestens 2 Modelle erforderlich'}), 400
+
+    # Check if all models are Ollama models
+    ollama_models = [m for m in models if m.startswith('ollama:')]
+    if len(ollama_models) != len(models):
+        return jsonify({'error': 'Alle Modelle müssen Ollama-Modelle sein'}), 400
+
+    db = get_db()
+
+    # Check if questions exist
+    question_count = db.execute('SELECT COUNT(*) as count FROM benchmark_questions').fetchone()
+    if question_count['count'] == 0:
+        return jsonify({'error': 'Keine Fragen verfügbar. Bitte initialisieren Sie den Fragen-Pool.'}), 400
+
+    # Create benchmark session
+    cursor = db.execute('''
+        INSERT INTO benchmark_sessions (user_id, models, total_questions, completed_questions, status)
+        VALUES (?, ?, ?, 0, 'active')
+    ''', (current_user.id, json.dumps(models), num_questions))
+
+    session_id = cursor.lastrowid
+    db.commit()
+
+    return jsonify({'session_id': session_id}), 201
+
+@app.route('/api/benchmark/session/<int:session_id>/next-question', methods=['GET'])
+@login_required
+def get_next_benchmark_question(session_id):
+    """Get the next question for benchmarking."""
+    db = get_db()
+
+    # Verify session ownership
+    session = db.execute('''
+        SELECT * FROM benchmark_sessions
+        WHERE id = ? AND user_id = ?
+    ''', (session_id, current_user.id)).fetchone()
+
+    if not session:
+        return jsonify({'error': 'Session nicht gefunden'}), 404
+
+    if session['status'] == 'completed':
+        return jsonify({'completed': True}), 200
+
+    # Check if session is complete
+    if session['completed_questions'] >= session['total_questions']:
+        db.execute('''
+            UPDATE benchmark_sessions
+            SET status = 'completed', completed_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (session_id,))
+        db.commit()
+        return jsonify({'completed': True}), 200
+
+    # Get already answered questions
+    answered = db.execute('''
+        SELECT DISTINCT question_id FROM benchmark_responses
+        WHERE session_id = ?
+    ''', (session_id,)).fetchall()
+
+    answered_ids = [r['question_id'] for r in answered]
+
+    # Get a random unanswered question
+    if answered_ids:
+        placeholders = ','.join('?' * len(answered_ids))
+        question = db.execute(f'''
+            SELECT * FROM benchmark_questions
+            WHERE id NOT IN ({placeholders})
+            ORDER BY RANDOM()
+            LIMIT 1
+        ''', answered_ids).fetchone()
+    else:
+        question = db.execute('''
+            SELECT * FROM benchmark_questions
+            ORDER BY RANDOM()
+            LIMIT 1
+        ''').fetchone()
+
+    if not question:
+        return jsonify({'error': 'Keine Fragen mehr verfügbar'}), 404
+
+    # Get responses from all models
+    models = json.loads(session['models'])
+    responses = []
+
+    import time
+    import random
+
+    for model in models:
+        start_time = time.time()
+
+        # Get AI response
+        response_text = get_ai_response(model, question['question'], None)
+
+        response_time = time.time() - start_time
+
+        # Store response
+        cursor = db.execute('''
+            INSERT INTO benchmark_responses (session_id, question_id, model, response, response_time)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (session_id, question['id'], model, response_text, response_time))
+
+        response_id = cursor.lastrowid
+
+        responses.append({
+            'id': response_id,
+            'response': response_text,
+            'response_time': response_time
+        })
+
+    db.commit()
+
+    # Shuffle responses for blind testing
+    random.shuffle(responses)
+
+    return jsonify({
+        'question': {
+            'id': question['id'],
+            'text': question['question'],
+            'category': question['category'],
+            'difficulty': question['difficulty']
+        },
+        'responses': responses,
+        'progress': {
+            'current': session['completed_questions'] + 1,
+            'total': session['total_questions']
+        }
+    }), 200
+
+def get_ai_response_simple(model_service, prompt):
+    """Simplified version of get_ai_response for benchmarking without conversation context."""
+    db = get_db()
+
+    service = model_service.split(':')[0]
+    model_name = model_service.split(':')[1] if ':' in model_service else None
+
+    api_key_row = db.execute('''
+        SELECT api_key FROM api_keys
+        WHERE user_id = ? AND service = ?
+    ''', (current_user.id, service)).fetchone()
+
+    if not api_key_row:
+        return f"Error: {service} API key not configured"
+
+    try:
+        if service == 'ollama':
+            if not model_name:
+                return "Error: No model specified for Ollama"
+            response = requests.post('http://localhost:11434/api/chat', json={
+                'model': model_name,
+                'messages': [{'role': 'user', 'content': prompt}],
+                'stream': False
+            })
+            if response.status_code == 200:
+                return response.json()['message']['content']
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+    return "Error: Unable to get response"
+
+@app.route('/api/benchmark/session/<int:session_id>/submit-rating', methods=['POST'])
+@login_required
+def submit_benchmark_rating(session_id):
+    """Submit a rating for a question."""
+    data = request.get_json()
+    question_id = data.get('question_id')
+    selected_response_id = data.get('selected_response_id')
+
+    db = get_db()
+
+    # Verify session ownership
+    session = db.execute('''
+        SELECT * FROM benchmark_sessions
+        WHERE id = ? AND user_id = ?
+    ''', (session_id, current_user.id)).fetchone()
+
+    if not session:
+        return jsonify({'error': 'Session nicht gefunden'}), 404
+
+    # Store rating
+    db.execute('''
+        INSERT INTO benchmark_ratings (session_id, question_id, selected_response_id, rating_value)
+        VALUES (?, ?, ?, 1)
+    ''', (session_id, question_id, selected_response_id))
+
+    # Update session progress
+    db.execute('''
+        UPDATE benchmark_sessions
+        SET completed_questions = completed_questions + 1
+        WHERE id = ?
+    ''', (session_id,))
+
+    db.commit()
+
+    return jsonify({'success': True}), 200
+
+@app.route('/api/benchmark/session/<int:session_id>/results', methods=['GET'])
+@login_required
+def get_benchmark_results(session_id):
+    """Get the results of a benchmarking session."""
+    db = get_db()
+
+    # Verify session ownership
+    session = db.execute('''
+        SELECT * FROM benchmark_sessions
+        WHERE id = ? AND user_id = ?
+    ''', (session_id, current_user.id)).fetchone()
+
+    if not session:
+        return jsonify({'error': 'Session nicht gefunden'}), 404
+
+    models = json.loads(session['models'])
+
+    # Get all ratings with model information
+    ratings = db.execute('''
+        SELECT
+            br.question_id,
+            br.selected_response_id,
+            bq.question,
+            bq.category,
+            bresp.model,
+            bresp.response,
+            bresp.response_time
+        FROM benchmark_ratings br
+        JOIN benchmark_questions bq ON br.question_id = bq.id
+        JOIN benchmark_responses bresp ON br.selected_response_id = bresp.id
+        WHERE br.session_id = ?
+    ''', (session_id,)).fetchall()
+
+    # Calculate scores
+    model_scores = {model: {'wins': 0, 'total_response_time': 0, 'responses': 0} for model in models}
+
+    for rating in ratings:
+        model = rating['model']
+        if model in model_scores:
+            model_scores[model]['wins'] += 1
+
+    # Get all response times
+    all_responses = db.execute('''
+        SELECT model, response_time
+        FROM benchmark_responses
+        WHERE session_id = ?
+    ''', (session_id,)).fetchall()
+
+    for resp in all_responses:
+        model = resp['model']
+        if model in model_scores:
+            model_scores[model]['total_response_time'] += resp['response_time'] or 0
+            model_scores[model]['responses'] += 1
+
+    # Calculate averages and format results
+    results = []
+    for model in models:
+        score = model_scores[model]
+        avg_time = score['total_response_time'] / score['responses'] if score['responses'] > 0 else 0
+
+        results.append({
+            'model': model,
+            'wins': score['wins'],
+            'total_questions': session['total_questions'],
+            'win_rate': (score['wins'] / session['total_questions'] * 100) if session['total_questions'] > 0 else 0,
+            'avg_response_time': round(avg_time, 2)
+        })
+
+    # Sort by wins
+    results.sort(key=lambda x: x['wins'], reverse=True)
+
+    # Get category breakdown
+    category_stats = db.execute('''
+        SELECT
+            bq.category,
+            bresp.model,
+            COUNT(*) as wins
+        FROM benchmark_ratings br
+        JOIN benchmark_questions bq ON br.question_id = bq.id
+        JOIN benchmark_responses bresp ON br.selected_response_id = bresp.id
+        WHERE br.session_id = ?
+        GROUP BY bq.category, bresp.model
+    ''', (session_id,)).fetchall()
+
+    categories = {}
+    for stat in category_stats:
+        cat = stat['category']
+        if cat not in categories:
+            categories[cat] = {}
+        categories[cat][stat['model']] = stat['wins']
+
+    return jsonify({
+        'session': {
+            'id': session['id'],
+            'created_at': session['created_at'],
+            'completed_at': session['completed_at'],
+            'total_questions': session['total_questions']
+        },
+        'overall_results': results,
+        'category_breakdown': categories
+    }), 200
 
 if __name__ == '__main__':
     init_db()
